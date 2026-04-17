@@ -1,0 +1,1424 @@
+/**
+ * UI.jsx — Aarogya+ React Frontend (Enhanced)
+ * Clean, elderly-friendly design · Lucide icons · Refined aesthetics
+ */
+
+import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  Home, Stethoscope, Camera, Bell, MapPin, ShieldPlus,
+  Mic, PenLine, Pill, ChevronRight, RefreshCw, CheckCircle2,
+  AlertTriangle, Info, Printer, Pencil, Phone, Navigation,
+  Clock, Calendar, Search, ChevronDown, ChevronUp, X,
+  Activity, Heart, Thermometer, MicOff, Upload, Loader2,
+  TrendingUp, PackageCheck, AlarmClock, Building2, Star,
+  CircleAlert, BadgeCheck, Leaf, Waves
+} from "lucide-react";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GLOBAL STYLES
+// ─────────────────────────────────────────────────────────────────────────────
+const STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Nunito:wght@400;500;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --cream:        #FAF7F2;
+    --cream-dk:     #F2EDE4;
+    --cream-border: #E8E0D4;
+    --sage:         #5C7A6B;
+    --sage-lt:      #EBF2EE;
+    --sage-dk:      #3D5C4E;
+    --terracotta:   #C4623A;
+    --terra-lt:     #FBF0EB;
+    --indigo:       #3D52A0;
+    --indigo-lt:    #EEF1FB;
+    --indigo-dk:    #2D3D7A;
+    --amber:        #B5771A;
+    --amber-lt:     #FEF7E8;
+    --red:          #B03A3A;
+    --red-lt:       #FDEEEE;
+    --t1:           #1C1917;
+    --t2:           #6B6157;
+    --t3:           #A89E94;
+    --surface:      #FFFFFF;
+    --r:            18px;
+    --r-sm:         12px;
+    --r-xs:         8px;
+    --font:         'Nunito', sans-serif;
+    --serif:        'DM Serif Display', serif;
+  }
+
+  body {
+    font-family: var(--font);
+    background: var(--cream);
+    color: var(--t1);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .shell {
+    min-height: 100vh;
+    max-width: 480px;
+    margin: 0 auto;
+    background: var(--cream);
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* ── Top bar ── */
+  .topbar {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(250,247,242,0.92);
+    backdrop-filter: blur(16px);
+    padding: 14px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--cream-border);
+  }
+  .logo {
+    font-family: var(--serif);
+    font-size: 22px;
+    color: var(--indigo);
+    cursor: pointer;
+    user-select: none;
+    letter-spacing: -0.3px;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .logo-dot { color: var(--terracotta); }
+
+  .lang-pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 14px;
+    background: var(--surface);
+    border: 1px solid var(--cream-border);
+    border-radius: 100px;
+    font-size: 14px; font-weight: 700; color: var(--t2);
+    cursor: pointer; transition: all .2s;
+  }
+  .lang-pill:hover { border-color: var(--indigo); color: var(--indigo); }
+
+  .lang-dropdown {
+    position: absolute; top: 62px; right: 20px; z-index: 200;
+    background: var(--surface);
+    border: 1px solid var(--cream-border);
+    border-radius: var(--r-sm);
+    box-shadow: 0 8px 32px rgba(28,25,23,0.12);
+    min-width: 170px; overflow: hidden;
+  }
+  .lang-opt {
+    padding: 13px 16px; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: background .15s;
+    display: flex; justify-content: space-between; align-items: center;
+    color: var(--t1);
+  }
+  .lang-opt:hover { background: var(--cream); }
+  .lang-opt.sel { color: var(--indigo); }
+
+  /* ── Bottom nav ── */
+  .botnav {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 480px;
+    background: var(--surface);
+    border-top: 1px solid var(--cream-border);
+    display: flex; align-items: center; justify-content: space-around;
+    padding: 10px 0 max(10px, env(safe-area-inset-bottom));
+    z-index: 100;
+    box-shadow: 0 -2px 20px rgba(28,25,23,0.06);
+  }
+  .navitem {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    cursor: pointer; padding: 4px 8px; flex: 1;
+    transition: all .2s; border-radius: var(--r-xs);
+    min-height: 52px; justify-content: center;
+  }
+  .navitem svg { color: var(--t3); transition: color .2s; }
+  .navitem.active svg { color: var(--indigo); }
+  .navlabel { font-size: 10px; font-weight: 700; color: var(--t3); transition: color .2s; }
+  .navitem.active .navlabel { color: var(--indigo); }
+
+  /* ── Screen ── */
+  .screen { padding: 22px 20px 110px; animation: fadeUp .28s ease; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border-radius: var(--r);
+    border: 1px solid var(--cream-border);
+    padding: 22px;
+    margin-bottom: 0;
+  }
+  .card-sm { border-radius: var(--r-sm); padding: 16px; }
+
+  /* ── Section header ── */
+  .sh-eyebrow {
+    font-size: 11px; font-weight: 800; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--t3);
+    margin-bottom: 4px;
+  }
+  .sh-title {
+    font-family: var(--serif);
+    font-size: 28px; color: var(--t1);
+    letter-spacing: -0.3px; line-height: 1.2;
+  }
+  .sh-sub { font-size: 15px; color: var(--t2); margin-top: 5px; line-height: 1.5; }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 15px 24px; border-radius: 100px;
+    font-family: var(--font); font-size: 16px; font-weight: 700;
+    cursor: pointer; border: none; transition: all .2s; min-height: 52px;
+    letter-spacing: -0.1px;
+  }
+  .btn-primary { background: var(--indigo); color: #fff; }
+  .btn-primary:hover { background: var(--indigo-dk); transform: translateY(-1px); }
+  .btn-sage { background: var(--sage); color: #fff; }
+  .btn-sage:hover { background: var(--sage-dk); }
+  .btn-terra { background: var(--terracotta); color: #fff; }
+  .btn-ghost { background: var(--indigo-lt); color: var(--indigo); }
+  .btn-ghost:hover { background: #E0E6F8; }
+  .btn-outline {
+    background: transparent; color: var(--t2);
+    border: 1.5px solid var(--cream-border);
+    font-size: 14px; min-height: 40px; padding: 10px 16px;
+  }
+  .btn-outline:hover { border-color: var(--indigo); color: var(--indigo); }
+  .btn-sm { padding: 9px 16px; font-size: 14px; min-height: 40px; }
+  .btn-full { width: 100%; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; transform: none !important; }
+
+  /* ── Inputs ── */
+  .label { font-size: 15px; font-weight: 700; color: var(--t2); margin-bottom: 8px; display: block; }
+  .input {
+    width: 100%; padding: 15px 18px;
+    border-radius: var(--r-sm);
+    border: 1.5px solid var(--cream-border);
+    background: var(--cream);
+    font-family: var(--font); font-size: 16px; color: var(--t1);
+    outline: none; transition: border-color .2s; resize: none;
+    line-height: 1.5;
+  }
+  .input:focus { border-color: var(--indigo); background: var(--surface); box-shadow: 0 0 0 3px var(--indigo-lt); }
+  .input::placeholder { color: var(--t3); }
+
+  /* ── Badges ── */
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 5px 11px; border-radius: 100px;
+    font-size: 12px; font-weight: 700;
+  }
+  .b-indigo { background: var(--indigo-lt); color: var(--indigo); }
+  .b-sage   { background: var(--sage-lt); color: var(--sage-dk); }
+  .b-amber  { background: var(--amber-lt); color: var(--amber); }
+  .b-red    { background: var(--red-lt); color: var(--red); }
+  .b-terra  { background: var(--terra-lt); color: var(--terracotta); }
+  .b-gray   { background: var(--cream-dk); color: var(--t2); }
+
+  /* ── Severity ── */
+  .sev { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 100px; font-size: 12px; font-weight: 700; }
+  .sev-low  { background: var(--sage-lt);  color: var(--sage-dk); }
+  .sev-mid  { background: var(--amber-lt); color: var(--amber); }
+  .sev-high { background: var(--red-lt);   color: var(--red); }
+
+  /* ── Info boxes ── */
+  .box-warn  { background: var(--red-lt);   border: 1.5px solid #FBBCBC; border-radius: var(--r-sm); padding: 16px; display: flex; gap: 12px; align-items: flex-start; }
+  .box-good  { background: var(--sage-lt);  border: 1.5px solid #C3DCCC; border-radius: var(--r-sm); padding: 16px; display: flex; gap: 12px; align-items: flex-start; }
+  .box-info  { background: var(--indigo-lt); border: 1.5px solid #C5CFF0; border-radius: var(--r-sm); padding: 15px 16px; display: flex; gap: 12px; align-items: flex-start; }
+  .box-amber { background: var(--amber-lt); border: 1.5px solid #F4D08A; border-radius: var(--r-sm); padding: 15px 16px; }
+
+  /* ── Greet band ── */
+  .greet-band {
+    background: var(--indigo);
+    border-radius: var(--r);
+    padding: 28px 24px;
+    color: #fff;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .greet-band::before {
+    content: '';
+    position: absolute; right: -30px; top: -30px;
+    width: 140px; height: 140px; border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+  }
+  .greet-band::after {
+    content: '';
+    position: absolute; right: 40px; bottom: -50px;
+    width: 100px; height: 100px; border-radius: 50%;
+    background: rgba(255,255,255,0.04);
+  }
+  .greet-time { font-size: 12px; font-weight: 800; opacity: .65; text-transform: uppercase; letter-spacing: 1px; }
+  .greet-msg  { font-family: var(--serif); font-size: 26px; margin-top: 6px; line-height: 1.25; }
+  .greet-sub  { font-size: 14px; opacity: .75; margin-top: 6px; font-weight: 500; }
+
+  /* ── Tabs ── */
+  .tabs {
+    display: flex; gap: 6px; margin-bottom: 20px;
+    background: var(--surface); border-radius: 100px;
+    padding: 5px; border: 1px solid var(--cream-border);
+  }
+  .tab {
+    flex: 1; padding: 10px; border: none; border-radius: 100px;
+    font-family: var(--font); font-size: 14px; font-weight: 700;
+    cursor: pointer; transition: all .2s;
+    background: transparent; color: var(--t2);
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .tab.active { background: var(--indigo); color: #fff; }
+
+  /* ── Reminder card ── */
+  .rem-card {
+    background: var(--surface); border-radius: var(--r-sm);
+    border: 1px solid var(--cream-border); padding: 16px 18px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .rem-card.done { opacity: .5; background: var(--cream); }
+  .time-badge {
+    background: var(--indigo-lt); color: var(--indigo);
+    border-radius: var(--r-xs); padding: 10px 12px;
+    font-size: 13px; font-weight: 800; text-align: center;
+    min-width: 58px; line-height: 1.25; flex-shrink: 0;
+  }
+
+  /* ── Progress ── */
+  .prog-wrap { height: 6px; background: var(--cream-dk); border-radius: 100px; overflow: hidden; }
+  .prog-fill { height: 100%; border-radius: 100px; transition: width .7s ease; }
+
+  /* ── Upload zone ── */
+  .upload {
+    border: 2px dashed var(--cream-border);
+    border-radius: var(--r); padding: 38px 20px;
+    text-align: center; cursor: pointer;
+    background: var(--cream); transition: all .2s;
+  }
+  .upload:hover { border-color: var(--indigo); background: var(--indigo-lt); }
+  .upload input { display: none; }
+
+  /* ── Record btn ── */
+  .rec-btn {
+    width: 84px; height: 84px; border-radius: 50%; border: none;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all .2s; margin: 0 auto;
+  }
+  .rec-btn.idle { background: var(--indigo-lt); color: var(--indigo); }
+  .rec-btn.live { background: var(--red); color: #fff; animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(176,58,58,.35);} 70%{box-shadow:0 0 0 16px rgba(176,58,58,0);} }
+
+  /* ── Pharmacy card ── */
+  .pharm {
+    background: var(--surface); border-radius: var(--r-sm);
+    border: 1px solid var(--cream-border); padding: 18px;
+  }
+  .pharm.avail   { border-left: 4px solid var(--sage); }
+  .pharm.unavail { border-left: 4px solid var(--t3); }
+
+  /* ── Purpose box ── */
+  .purpose-box {
+    background: var(--indigo-lt); border: 1px solid #C5CFF0;
+    border-radius: var(--r-xs); padding: 14px 16px; margin-top: 12px;
+  }
+  .purpose-lbl { font-size: 11px; font-weight: 800; color: var(--indigo); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 5px; }
+  .purpose-text { font-size: 14px; color: var(--indigo-dk); line-height: 1.65; }
+
+  /* ── Condition card ── */
+  .cond-card { background: var(--cream); border-radius: var(--r-xs); padding: 14px; border: 1px solid var(--cream-border); }
+
+  /* ── Chips ── */
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  .chip-sym {
+    background: var(--amber-lt); color: var(--amber);
+    border-radius: var(--r-xs); padding: 7px 12px;
+    font-size: 13px; font-weight: 700;
+  }
+  .chip {
+    background: var(--indigo-lt); color: var(--indigo);
+    border-radius: var(--r-xs); padding: 7px 12px;
+    font-size: 13px; font-weight: 700;
+  }
+
+  /* ── Rx portal header ── */
+  .rx-band {
+    background: var(--sage);
+    border-radius: var(--r);
+    padding: 26px 24px; color: #fff; margin-bottom: 18px;
+    position: relative; overflow: hidden;
+  }
+  .rx-band::after { content: ''; position: absolute; right: -20px; top: -20px; width: 120px; height: 120px; border-radius: 50%; background: rgba(255,255,255,0.07); }
+
+  /* ── Spinner ── */
+  @keyframes rot { to { transform: rotate(360deg); } }
+  .spin-icon { animation: rot .8s linear infinite; }
+
+  /* ── Empty state ── */
+  .empty { text-align: center; padding: 48px 20px; color: var(--t2); }
+  .empty-icon { margin-bottom: 14px; color: var(--t3); }
+  .empty-text { font-family: var(--serif); font-size: 20px; color: var(--t1); }
+  .empty-sub  { font-size: 14px; margin-top: 6px; color: var(--t2); line-height: 1.5; }
+
+  /* ── Utils ── */
+  .mt8  { margin-top: 8px; }
+  .mt12 { margin-top: 12px; }
+  .mt16 { margin-top: 16px; }
+  .mt20 { margin-top: 20px; }
+  .row  { display: flex; align-items: center; }
+  .between { justify-content: space-between; }
+  .gap6  { gap: 6px; }
+  .gap8  { gap: 8px; }
+  .gap12 { gap: 12px; }
+  .col   { flex-direction: column; }
+  .bold  { font-weight: 800; }
+
+  /* ── Section label ── */
+  .section-label {
+    font-size: 11px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--t3); margin-bottom: 10px;
+  }
+
+  /* ── Divider ── */
+  .divider { height: 1px; background: var(--cream-border); margin: 4px 0; }
+
+  /* ── Stat strip ── */
+  .stat-strip {
+    background: var(--cream-dk); border-radius: var(--r-xs);
+    padding: 12px 16px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+
+  /* ── Print ── */
+  @media print {
+    .botnav, .topbar, .no-print { display: none !important; }
+    .shell { max-width: 100%; }
+    .screen { padding: 16px; }
+  }
+`;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────────────────────────────────────
+const BASE = import.meta.env.DEV ? "" : "";
+
+const LANGS = [
+  { code: "en", label: "English", flag: "🇬🇧" },
+  { code: "hi", label: "हिन्दी", flag: "🇮🇳" },
+  { code: "ta", label: "தமிழ்", flag: "🇮🇳" },
+  { code: "te", label: "తెలుగు", flag: "🇮🇳" },
+  { code: "kn", label: "ಕನ್ನಡ", flag: "🇮🇳" },
+  { code: "es", label: "Español", flag: "🇪🇸" },
+  { code: "fr", label: "Français", flag: "🇫🇷" },
+];
+
+const NAV = [
+  { id: "home",       icon: Home,       label: "Home" },
+  { id: "symptoms",   icon: Stethoscope,label: "Symptoms" },
+  { id: "scan",       icon: Camera,     label: "Scan" },
+  { id: "reminders",  icon: Bell,       label: "Medicines" },
+  { id: "locator",    icon: MapPin,     label: "Locate" },
+  { id: "pharmacist", icon: ShieldPlus, label: "Portal" },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// API HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+async function handleRes(r) {
+  const text = await r.text();
+  try { return JSON.parse(text); }
+  catch { throw new Error(!r.ok ? "Backend server is offline (502 Gateway)" : text || "Invalid response format"); }
+}
+async function post(endpoint, body) {
+  const r = await fetch(BASE + endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  return handleRes(r);
+}
+async function postForm(endpoint, formData) {
+  const r = await fetch(BASE + endpoint, { method: "POST", body: formData });
+  return handleRes(r);
+}
+async function get(endpoint) {
+  const r = await fetch(BASE + endpoint);
+  return handleRes(r);
+}
+const api = {
+  analyze: (text, lang) => post("/api/analyze", { text, lang }),
+  scan: (file, lang) => { const f = new FormData(); f.append("image", file); f.append("lang", lang); return postForm("/api/scan", f); },
+  reminders: (lang) => get(`/api/reminders?lang=${lang}`),
+  taken: (name, time) => post("/api/taken", { medicine_name: name, time }),
+  followup: (lang) => get(`/api/followup?lang=${lang}`),
+  locate: (name, lat, lng) => get(`/api/locate-medicine?name=${encodeURIComponent(name)}&lat=${lat}&lng=${lng}`),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SHARED COMPONENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function Spinner() {
+  return (
+    <div style={{ padding: "36px 0", textAlign: "center", color: "var(--indigo)" }}>
+      <Loader2 size={32} className="spin-icon" />
+      <div style={{ marginTop: 10, fontSize: 14, color: "var(--t2)", fontWeight: 600 }}>Please wait…</div>
+    </div>
+  );
+}
+
+function ErrBox({ msg }) {
+  const isConn = !msg || typeof msg !== "string" || msg.toLowerCase().includes("failed to fetch");
+  return (
+    <div className="box-warn mt16">
+      <AlertTriangle size={20} style={{ color: "var(--red)", flexShrink: 0, marginTop: 2 }} />
+      <div>
+        <div style={{ fontWeight: 700, color: "var(--red)", fontSize: 15 }}>
+          {isConn ? "Connection error" : "Something went wrong"}
+        </div>
+        <div style={{ fontSize: 14, color: "#8B2F2F", marginTop: 4, lineHeight: 1.5 }}>
+          {msg || "Make sure the Flask backend is running on port 5000."}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function probColor(p) {
+  return p >= 0.7 ? "var(--red)" : p >= 0.4 ? "var(--amber)" : "var(--sage)";
+}
+
+function SevBadge({ p }) {
+  if (p >= 0.7) return <span className="sev sev-high"><AlertTriangle size={10} /> High</span>;
+  if (p >= 0.4) return <span className="sev sev-mid"><Activity size={10} /> Moderate</span>;
+  return <span className="sev sev-low"><BadgeCheck size={10} /> Low</span>;
+}
+
+function SymptomResults({ data }) {
+  if (!data) return null;
+  const { symptoms = [], conditions = [], advice, warning, transcript } = data;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 20 }}>
+      {transcript && (
+        <div className="card card-sm">
+          <div style={{ fontSize: 11, fontWeight: 800, color: "var(--t3)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10, display: "flex", alignItems: "center", gap: 5 }}>
+            <Mic size={12} /> Transcript
+          </div>
+          <div style={{ fontSize: 17, fontStyle: "italic", fontFamily: "var(--serif)", lineHeight: 1.65, color: "var(--t1)" }}>"{transcript}"</div>
+        </div>
+      )}
+      {symptoms.length > 0 && (
+        <div className="card card-sm">
+          <div className="row between" style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--t2)", display: "flex", alignItems: "center", gap: 6 }}>
+              <Thermometer size={15} /> Detected Symptoms
+            </div>
+            <span className="badge b-amber">{symptoms.length} found</span>
+          </div>
+          <div className="chips">
+            {symptoms.map((s, i) => <span key={i} className="chip-sym">{s}</span>)}
+          </div>
+        </div>
+      )}
+      {conditions.length > 0 && (
+        <div className="card card-sm">
+          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--t2)", marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
+            <Stethoscope size={15} /> Possible Conditions
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {conditions.map((c, i) => {
+              const pct = Math.round((c.probability || 0) * 100);
+              return (
+                <div key={i} className="cond-card">
+                  <div className="row between" style={{ marginBottom: 8 }}>
+                    <div style={{ fontWeight: 700, fontSize: 16 }}>{c.name}</div>
+                    <div className="row gap8">
+                      <SevBadge p={c.probability || 0} />
+                      <span style={{ fontSize: 15, fontWeight: 800, color: probColor(c.probability || 0) }}>{pct}%</span>
+                    </div>
+                  </div>
+                  <div className="prog-wrap">
+                    <div className="prog-fill" style={{ width: `${pct}%`, background: probColor(c.probability || 0) }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {advice && (
+        <div className="box-good">
+          <Heart size={20} style={{ color: "var(--sage)", flexShrink: 0, marginTop: 2 }} />
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: "var(--sage-dk)" }}>Advice</div>
+            <div style={{ fontSize: 14, color: "var(--sage-dk)", marginTop: 4, lineHeight: 1.6 }}>{advice}</div>
+          </div>
+        </div>
+      )}
+      {warning && (
+        <div className="box-warn">
+          <CircleAlert size={20} style={{ color: "var(--red)", flexShrink: 0, marginTop: 2 }} />
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: "var(--red)" }}>Warning</div>
+            <div style={{ fontSize: 14, color: "#8B2F2F", marginTop: 4, lineHeight: 1.6 }}>{warning}</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MEDICINE CARD
+// ─────────────────────────────────────────────────────────────────────────────
+const SCHED_LABELS = {
+  "1-0-0": "Morning only", "0-1-0": "Afternoon only",
+  "0-0-1": "Night only", "1-1-0": "Morning & Afternoon",
+  "1-0-1": "Morning & Night", "0-1-1": "Afternoon & Night",
+  "1-1-1": "Three times daily",
+};
+
+function MedCard({ m }) {
+  const [open, setOpen] = useState(false);
+  const hasPurpose = m.purpose && !m.purpose.startsWith("Not found");
+  return (
+    <div className="card card-sm">
+      <div className="row between" style={{ marginBottom: 14 }}>
+        <div>
+          <div style={{ fontFamily: "var(--serif)", fontSize: 20, color: "var(--t1)" }}>{m.medicine_name}</div>
+          <span className="badge b-indigo mt8">{m.dosage}</span>
+        </div>
+        <span className="badge b-sage">{m.duration}</span>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <div style={{ background: "var(--cream)", borderRadius: 8, padding: "10px 12px" }}>
+          <div style={{ fontSize: 10, color: "var(--t3)", fontWeight: 800, textTransform: "uppercase", letterSpacing: .6, display: "flex", alignItems: "center", gap: 4 }}>
+            <Clock size={10} /> Schedule
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 700, marginTop: 4, color: "var(--t1)" }}>{SCHED_LABELS[m.schedule] || m.schedule}</div>
+        </div>
+        <div style={{ background: "var(--amber-lt)", borderRadius: 8, padding: "10px 12px" }}>
+          <div style={{ fontSize: 10, color: "var(--amber)", fontWeight: 800, textTransform: "uppercase", letterSpacing: .6, display: "flex", alignItems: "center", gap: 4 }}>
+            <Leaf size={10} /> Food
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--amber)", marginTop: 4 }}>{m.food_instruction}</div>
+        </div>
+      </div>
+      {hasPurpose ? (
+        <>
+          <button onClick={() => setOpen(v => !v)}
+            style={{
+              marginTop: 12, background: "none", border: "none", cursor: "pointer",
+              fontSize: 13, fontWeight: 700, color: "var(--indigo)",
+              display: "flex", alignItems: "center", gap: 5, padding: 0
+            }}>
+            {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            {open ? "Hide purpose" : "Why this medicine?"}
+          </button>
+          {open && (
+            <div className="purpose-box">
+              <div className="purpose-lbl"><Pill size={10} style={{ display: "inline" }} /> Purpose</div>
+              <div className="purpose-text">{m.purpose}</div>
+            </div>
+          )}
+        </>
+      ) : (
+        <span className="badge b-gray mt8" style={{ fontSize: 11 }}>Purpose: not in FDA database</span>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SCREENS
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Home ──────────────────────────────────────────────────────────────────────
+function HomeScreen({ go }) {
+  const h = new Date().getHours();
+  const greet = h < 12 ? "Good Morning" : h < 17 ? "Good Afternoon" : "Good Evening";
+  const timeLabel = h < 12 ? "Morning" : h < 17 ? "Afternoon" : "Evening";
+
+  const cards = [
+    {
+      icon: Mic, bg: "var(--indigo)", iconColor: "#fff",
+      title: "Speak Symptoms",
+      desc: "Talk about how you feel",
+      screen: "audio"
+    },
+    {
+      icon: PenLine, bg: "var(--sage-lt)", iconColor: "var(--sage)",
+      title: "Type Symptoms",
+      desc: "Describe in your words",
+      screen: "symptoms"
+    },
+    {
+      icon: Camera, bg: "var(--amber-lt)", iconColor: "var(--amber)",
+      title: "Scan Prescription",
+      desc: "Upload a doctor's note",
+      screen: "scan"
+    },
+    {
+      icon: Pill, bg: "var(--terra-lt)", iconColor: "var(--terracotta)",
+      title: "View Medicines",
+      desc: "Today's dose schedule",
+      screen: "reminders"
+    },
+  ];
+
+  return (
+    <div className="screen">
+      <div className="greet-band">
+        <div className="greet-time">{timeLabel}</div>
+        <div className="greet-msg">
+          {greet}, Dadi Ji
+        </div>
+        <div className="greet-sub">How are you feeling today?</div>
+      </div>
+
+      <div className="section-label">Quick Actions</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+        {cards.map(c => {
+          const Icon = c.icon;
+          return (
+            <div key={c.screen}
+              onClick={() => go(c.screen)}
+              style={{
+                background: "var(--surface)", borderRadius: "var(--r)",
+                border: "1px solid var(--cream-border)", padding: "20px 16px",
+                cursor: "pointer", transition: "all .2s", position: "relative"
+              }}
+              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.borderColor = "var(--indigo)"; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.borderColor = "var(--cream-border)"; }}
+              onMouseDown={e => { e.currentTarget.style.transform = "scale(0.97)"; }}
+              onMouseUp={e => { e.currentTarget.style.transform = ""; }}
+            >
+              <ChevronRight size={16} style={{ position: "absolute", top: 14, right: 14, color: "var(--t3)" }} />
+              <div style={{ width: 46, height: 46, borderRadius: 13, background: c.bg, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
+                <Icon size={22} style={{ color: c.iconColor }} />
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "var(--t1)", lineHeight: 1.3 }}>{c.title}</div>
+              <div style={{ fontSize: 12, color: "var(--t2)", marginTop: 3, lineHeight: 1.4 }}>{c.desc}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div
+        className="card"
+        style={{ cursor: "pointer", background: "var(--sage-lt)", border: "1px solid #C3DCCC", marginBottom: 12 }}
+        onClick={() => go("locator")}
+      >
+        <div className="row gap12">
+          <div style={{ width: 46, height: 46, borderRadius: 13, background: "var(--sage)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Building2 size={22} style={{ color: "#fff" }} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 800, fontSize: 16, color: "var(--sage-dk)" }}>Find a Pharmacy</div>
+            <div style={{ fontSize: 13, color: "var(--sage)", marginTop: 2 }}>Locate medicines near you</div>
+          </div>
+          <ChevronRight size={20} style={{ color: "var(--sage)" }} />
+        </div>
+      </div>
+
+      <div
+        className="card card-sm"
+        style={{ cursor: "pointer", background: "var(--terra-lt)", border: "1px solid #F4CABC" }}
+        onClick={() => go("pharmacist")}
+      >
+        <div className="row gap12">
+          <div style={{ width: 42, height: 42, borderRadius: 12, background: "var(--terracotta)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <ShieldPlus size={20} style={{ color: "#fff" }} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 800, fontSize: 15, color: "var(--terracotta)" }}>Pharmacist Portal</div>
+            <div style={{ fontSize: 12, color: "#A04E2C", marginTop: 2 }}>Generate prescription report</div>
+          </div>
+          <ChevronRight size={18} style={{ color: "var(--terracotta)" }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Symptom Text ──────────────────────────────────────────────────────────────
+function SymptomsScreen({ lang }) {
+  const [text, setText] = useState("");
+  const [loading, setLoad] = useState(false);
+  const [result, setResult] = useState(null);
+  const [err, setErr] = useState(null);
+
+  const submit = async () => {
+    if (!text.trim()) return;
+    setLoad(true); setErr(null); setResult(null);
+    try {
+      const d = await api.analyze(text, lang);
+      d.error ? setErr(d.error) : setResult(d);
+    } catch (e) { setErr(e.message); }
+    finally { setLoad(false); }
+  };
+
+  return (
+    <div className="screen">
+      <div style={{ marginBottom: 20 }}>
+        <div className="sh-eyebrow">Describe Symptoms</div>
+        <div className="sh-title">How are you feeling?</div>
+        <div className="sh-sub">Write about what's bothering you, in your own words.</div>
+      </div>
+      <div className="card">
+        <label className="label">What's bothering you?</label>
+        <textarea
+          className="input" rows={5}
+          placeholder="e.g. I have had a headache and mild fever since yesterday morning…"
+          value={text} onChange={e => setText(e.target.value)}
+        />
+        <button className="btn btn-primary btn-full mt16" onClick={submit} disabled={loading || !text.trim()}>
+          {loading
+            ? <><Loader2 size={18} className="spin-icon" /> Analyzing…</>
+            : <><Search size={18} /> Analyze Symptoms</>
+          }
+        </button>
+      </div>
+      {loading && <Spinner />}
+      {err && <ErrBox msg={err} />}
+      {result && <SymptomResults data={result} />}
+    </div>
+  );
+}
+
+// ── Audio ─────────────────────────────────────────────────────────────────────
+function AudioScreen({ lang }) {
+  const [listening, setListening] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [err, setErr] = useState(null);
+  const [status, setStatus] = useState("Tap the microphone to start");
+  const [transcript, setTranscript] = useState("");
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  const startListening = () => {
+    if (!SpeechRecognition) { setErr("Speech recognition not supported in this browser"); return; }
+    const recognition = new SpeechRecognition();
+    recognition.lang = lang === "hi" ? "hi-IN" : lang === "kn" ? "kn-IN" : lang === "ta" ? "ta-IN" : lang === "te" ? "te-IN" : "en-US";
+    recognition.interimResults = false;
+    recognition.continuous = false;
+    setListening(true); setStatus("Listening… Speak now"); setErr(null); setResult(null);
+    recognition.start();
+    recognition.onresult = async (event) => {
+      const text = event.results[0][0].transcript;
+      setTranscript(text); setListening(false); setLoading(true); setStatus("Analyzing your symptoms…");
+      try {
+        const res = await api.analyze(text, lang);
+        res.error ? (setErr(res.error), setStatus("Something went wrong")) : (setResult(res), setStatus("Done! See results below"));
+      } catch (e) { setErr("Server not responding"); setStatus("Connection failed"); }
+      setLoading(false);
+    };
+    recognition.onerror = () => { setListening(false); setStatus("Recognition failed"); setErr("Could not understand. Please try again."); };
+    recognition.onend = () => setListening(false);
+  };
+
+  return (
+    <div className="screen">
+      <div style={{ marginBottom: 20 }}>
+        <div className="sh-eyebrow">Voice Input</div>
+        <div className="sh-title">Speak Symptoms</div>
+        <div className="sh-sub">Just talk — we'll understand and analyse for you.</div>
+      </div>
+
+      <div className="card" style={{ textAlign: "center", padding: "40px 24px" }}>
+        <button
+          className={`rec-btn ${listening ? "live" : "idle"}`}
+          onClick={startListening}
+          disabled={loading}
+        >
+          {listening ? <MicOff size={34} /> : <Mic size={34} />}
+        </button>
+        <div style={{ marginTop: 18, fontSize: 16, fontWeight: 700, color: "var(--t1)" }}>{status}</div>
+        <div style={{ marginTop: 6, fontSize: 13, color: "var(--t2)" }}>
+          {listening ? "Tap to stop" : "Tap to speak"}
+        </div>
+      </div>
+
+      {transcript && (
+        <div className="card card-sm mt16">
+          <div style={{ fontSize: 12, fontWeight: 800, color: "var(--t3)", textTransform: "uppercase", letterSpacing: .6, display: "flex", alignItems: "center", gap: 5, marginBottom: 8 }}>
+            <Mic size={11} /> You said
+          </div>
+          <div style={{ fontSize: 16, fontStyle: "italic", fontFamily: "var(--serif)", lineHeight: 1.6 }}>"{transcript}"</div>
+        </div>
+      )}
+
+      <div className="box-amber mt12">
+        <div style={{ fontSize: 13, fontWeight: 800, color: "var(--amber)", marginBottom: 5, display: "flex", alignItems: "center", gap: 6 }}>
+          <Info size={14} /> Tip for best results
+        </div>
+        <div style={{ fontSize: 14, color: "#7A5412", lineHeight: 1.6 }}>
+          Speak clearly and mention when your symptoms started, how severe they are, and any changes you've noticed.
+        </div>
+      </div>
+
+      {loading && <Spinner />}
+      {err && <ErrBox msg={err} />}
+      {result && <SymptomResults data={result} />}
+    </div>
+  );
+}
+
+// ── Scan ──────────────────────────────────────────────────────────────────────
+function ScanScreen({ lang, onScanned }) {
+  const [file, setFile] = useState(null);
+  const [preview, setPrev] = useState(null);
+  const [loading, setLoad] = useState(false);
+  const [result, setResult] = useState(null);
+  const [err, setErr] = useState(null);
+  const fileRef = useRef(null);
+
+  const pick = f => {
+    if (!f) return;
+    setFile(f); setPrev(URL.createObjectURL(f)); setResult(null); setErr(null);
+  };
+
+  const submit = async () => {
+    if (!file) return;
+    setLoad(true); setErr(null);
+    try {
+      const d = await api.scan(file, lang);
+      d.error ? setErr(d.error) : (setResult(d), onScanned?.(d.medicines || []));
+    } catch (e) { setErr(e.message); }
+    finally { setLoad(false); }
+  };
+
+  return (
+    <div className="screen">
+      <div style={{ marginBottom: 20 }}>
+        <div className="sh-eyebrow">Prescription Scanner</div>
+        <div className="sh-title">Scan Prescription</div>
+        <div className="sh-sub">Upload a photo of your doctor's note to extract medicines.</div>
+      </div>
+
+      <div
+        className="upload"
+        onClick={() => fileRef.current?.click()}
+        onDragOver={e => e.preventDefault()}
+        onDrop={e => { e.preventDefault(); pick(e.dataTransfer.files[0]); }}
+      >
+        <input ref={fileRef} type="file" accept="image/*" onChange={e => pick(e.target.files[0])} />
+        {preview
+          ? <img src={preview} alt="prescription" style={{ maxHeight: 200, maxWidth: "100%", borderRadius: 12, objectFit: "contain" }} />
+          : (
+            <div>
+              <div style={{ width: 64, height: 64, borderRadius: 18, background: "var(--indigo-lt)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                <Upload size={28} style={{ color: "var(--indigo)" }} />
+              </div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: "var(--indigo)" }}>Tap to upload prescription</div>
+              <div style={{ fontSize: 13, color: "var(--t2)", marginTop: 6 }}>JPG or PNG · or take a photo</div>
+            </div>
+          )
+        }
+      </div>
+
+      {file && (
+        <button className="btn btn-primary btn-full mt12" onClick={submit} disabled={loading}>
+          {loading
+            ? <><Loader2 size={18} className="spin-icon" /> Reading prescription…</>
+            : <><Camera size={18} /> Extract Medicines</>
+          }
+        </button>
+      )}
+
+      {loading && <Spinner />}
+      {err && <ErrBox msg={err} />}
+
+      {result?.medicines && (
+        <div className="mt20">
+          <div className="row between" style={{ marginBottom: 14 }}>
+            <div style={{ fontFamily: "var(--serif)", fontSize: 20, color: "var(--t1)" }}>
+              {result.medicines.length} Medicine{result.medicines.length !== 1 ? "s" : ""} Found
+            </div>
+            <PackageCheck size={20} style={{ color: "var(--sage)" }} />
+          </div>
+          {result.message && (
+            <div className="box-good" style={{ marginBottom: 14 }}>
+              <CheckCircle2 size={18} style={{ color: "var(--sage)", flexShrink: 0 }} />
+              <div style={{ fontSize: 14, color: "var(--sage-dk)", fontWeight: 600 }}>{result.message}</div>
+            </div>
+          )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {result.medicines.map((m, i) => <MedCard key={i} m={m} />)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Reminders ─────────────────────────────────────────────────────────────────
+function RemindersScreen({ lang }) {
+  const [tab, setTab] = useState("today");
+  const [rems, setRems] = useState([]);
+  const [fup, setFup] = useState([]);
+  const [loading, setLoad] = useState(true);
+  const [err, setErr] = useState(null);
+  const [taken, setTaken] = useState(new Set());
+  const [refreshing, setRf] = useState(false);
+
+  const load = useCallback(async (silent = false) => {
+    silent ? setRf(true) : setLoad(true);
+    setErr(null);
+    try {
+      const [r, f] = await Promise.all([api.reminders(lang), api.followup(lang)]);
+      const remList = Array.isArray(r) ? r : [];
+      const fupList = Array.isArray(f) ? f : [];
+      setRems(remList); setFup(fupList);
+      const init = new Set();
+      remList.forEach(x => { if (x.taken) init.add(`${x.medicine_name}_${x.time}`); });
+      setTaken(init);
+    } catch (e) { setErr(e.message); }
+    finally { setLoad(false); setRf(false); }
+  }, [lang]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const markTaken = async (name, time) => {
+    try {
+      await api.taken(name, time);
+      setTaken(prev => new Set([...prev, `${name}_${time}`]));
+    } catch { alert("Could not connect to server. Is the backend running?"); }
+  };
+
+  const slotIcons = { Morning: AlarmClock, Afternoon: Waves, Evening: Waves, Night: Waves };
+  const doneCount = rems.filter(r => taken.has(`${r.medicine_name}_${r.time}`)).length;
+
+  return (
+    <div className="screen">
+      <div className="row between" style={{ marginBottom: 20 }}>
+        <div>
+          <div className="sh-eyebrow">Schedule</div>
+          <div className="sh-title">Medicine Schedule</div>
+        </div>
+        <button className="btn btn-outline btn-sm no-print" onClick={() => load(true)} disabled={refreshing}>
+          <RefreshCw size={14} className={refreshing ? "spin-icon" : ""} />
+          {refreshing ? "…" : "Refresh"}
+        </button>
+      </div>
+
+      <div className="tabs">
+        <button className={`tab ${tab === "today" ? "active" : ""}`} onClick={() => setTab("today")}>
+          <AlarmClock size={14} /> Today {rems.length > 0 ? `(${doneCount}/${rems.length})` : ""}
+        </button>
+        <button className={`tab ${tab === "followup" ? "active" : ""}`} onClick={() => setTab("followup")}>
+          <Calendar size={14} /> Follow-up {fup.length > 0 ? `(${fup.length})` : ""}
+        </button>
+      </div>
+
+      {loading && <Spinner />}
+      {err && <ErrBox msg={err} />}
+
+      {!loading && tab === "today" && (
+        rems.length === 0
+          ? <div className="empty">
+            <div className="empty-icon"><Pill size={46} /></div>
+            <div className="empty-text">No reminders today</div>
+            <div className="empty-sub">Scan a prescription to get started</div>
+          </div>
+          : <>
+            <div className="stat-strip" style={{ marginBottom: 16, background: doneCount === rems.length ? "var(--sage-lt)" : "var(--indigo-lt)" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: doneCount === rems.length ? "var(--sage-dk)" : "var(--indigo)" }}>
+                {doneCount === rems.length ? "All doses taken today!" : `${rems.length - doneCount} dose${rems.length - doneCount !== 1 ? "s" : ""} remaining`}
+              </div>
+              <span className="badge b-indigo">{doneCount}/{rems.length}</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {rems.map((r, i) => {
+                const key = `${r.medicine_name}_${r.time}`;
+                const done = taken.has(key);
+                const SlotIcon = slotIcons[r.slot] || Pill;
+                return (
+                  <div key={i} className={`rem-card ${done ? "done" : ""}`}>
+                    <div className="time-badge">
+                      <SlotIcon size={16} style={{ margin: "0 auto 3px" }} />
+                      <div style={{ fontSize: 12 }}>{r.time}</div>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 800, fontSize: 16 }}>{r.medicine_name}</div>
+                      <div style={{ fontSize: 13, color: "var(--t2)", marginTop: 2 }}>{r.slot} · {r.food_instruction}</div>
+                    </div>
+                    {done
+                      ? <span className="badge b-sage"><CheckCircle2 size={12} /> Taken</span>
+                      : <button className="btn btn-sage btn-sm" onClick={() => markTaken(r.medicine_name, r.time)}>
+                        <CheckCircle2 size={14} /> Mark Taken
+                      </button>
+                    }
+                  </div>
+                );
+              })}
+            </div>
+          </>
+      )}
+
+      {!loading && tab === "followup" && (
+        fup.length === 0
+          ? <div className="empty">
+            <div className="empty-icon"><Calendar size={46} /></div>
+            <div className="empty-text">No follow-ups yet</div>
+            <div className="empty-sub">Scan a prescription to track your progress</div>
+          </div>
+          : <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {fup.map((f, i) => {
+              const maxDays = 30;
+              const pct = Math.max(0, Math.min(100, ((maxDays - (f.days_remaining || 0)) / maxDays) * 100));
+              const urgent = f.days_remaining <= 2;
+              const warn = f.days_remaining <= 5;
+              const color = urgent ? "var(--red)" : warn ? "var(--amber)" : "var(--sage)";
+              return (
+                <div key={i} className="card card-sm" style={{ borderLeft: `4px solid ${color}`, borderRadius: "var(--r-sm)" }}>
+                  <div className="row between" style={{ marginBottom: 10 }}>
+                    <div style={{ fontFamily: "var(--serif)", fontSize: 18 }}>{f.medicine_name}</div>
+                    <span className={`badge ${urgent ? "b-red" : warn ? "b-amber" : "b-sage"}`}>{f.days_remaining}d left</span>
+                  </div>
+                  <div className="prog-wrap" style={{ marginBottom: 10 }}>
+                    <div className="prog-fill" style={{ width: `${pct}%`, background: color }} />
+                  </div>
+                  <div className="row between" style={{ fontSize: 13 }}>
+                    <span style={{ color: "var(--t2)" }}>Progress: <strong style={{ color: "var(--t1)" }}>{Math.round(pct)}%</strong></span>
+                    <span style={{ color: "var(--t2)" }}>Ends: <strong style={{ color: "var(--t1)" }}>{f.end_date}</strong></span>
+                  </div>
+                  {urgent && (
+                    <div style={{ marginTop: 8, fontSize: 13, fontWeight: 700, color: "var(--red)", display: "flex", alignItems: "center", gap: 5 }}>
+                      <AlertTriangle size={13} /> Refill immediately — critically low
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+      )}
+    </div>
+  );
+}
+
+// ── Locator ───────────────────────────────────────────────────────────────────
+function LocatorScreen() {
+  const [q, setQ] = useState("");
+  const [loading, setLoad] = useState(false);
+  const [locating, setLoc] = useState(false);
+  const [result, setResult] = useState(null);
+  const [err, setErr] = useState(null);
+  const posRef = useRef({ lat: 12.9716, lng: 77.5946 });
+
+  const getPos = () => new Promise(res => {
+    setLoc(true);
+    navigator.geolocation?.getCurrentPosition(
+      p => { posRef.current = { lat: p.coords.latitude, lng: p.coords.longitude }; setLoc(false); res(posRef.current); },
+      () => { setLoc(false); res(posRef.current); },
+      { timeout: 6000 }
+    );
+  });
+
+  const search = async () => {
+    if (!q.trim()) return;
+    setLoad(true); setErr(null); setResult(null);
+    const pos = await getPos();
+    try {
+      const d = await api.locate(q, pos.lat, pos.lng);
+      setResult(d);
+    } catch (e) { setErr(e.message); }
+    finally { setLoad(false); }
+  };
+
+  return (
+    <div className="screen">
+      <div style={{ marginBottom: 20 }}>
+        <div className="sh-eyebrow">Nearby Pharmacies</div>
+        <div className="sh-title">Find Medicine</div>
+        <div className="sh-sub">Search for a medicine and we'll find pharmacies near you.</div>
+      </div>
+
+      <div className="card">
+        <label className="label">Medicine name</label>
+        <div style={{ position: "relative" }}>
+          <Search size={17} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--t3)" }} />
+          <input
+            className="input"
+            style={{ paddingLeft: 42 }}
+            type="text"
+            placeholder="e.g. Paracetamol, Metformin…"
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && search()}
+          />
+        </div>
+        <button className="btn btn-primary btn-full mt12" onClick={search} disabled={loading || locating || !q.trim()}>
+          {locating
+            ? <><Loader2 size={18} className="spin-icon" /> Getting location…</>
+            : loading
+              ? <><Loader2 size={18} className="spin-icon" /> Searching…</>
+              : <><Navigation size={18} /> Find Nearby</>
+          }
+        </button>
+      </div>
+
+      <div className="box-info mt12">
+        <MapPin size={16} style={{ color: "var(--indigo)", flexShrink: 0, marginTop: 2 }} />
+        <div style={{ fontSize: 13, color: "var(--indigo-dk)" }}>
+          Using your current location. Falls back to Bengaluru if location is unavailable.
+        </div>
+      </div>
+
+      {(loading || locating) && <Spinner />}
+      {err && <ErrBox msg={err} />}
+
+      {result && (
+        <div className="mt20">
+          <div className="row between" style={{ marginBottom: 14 }}>
+            <div style={{ fontFamily: "var(--serif)", fontSize: 20 }}>
+              Pharmacies near you
+            </div>
+            {result.medicine && <span className="badge b-indigo">{result.medicine}</span>}
+          </div>
+          {(!result.results || result.results.length === 0)
+            ? <div className="empty">
+              <div className="empty-icon"><Building2 size={46} /></div>
+              <div className="empty-text">No pharmacies found</div>
+              <div className="empty-sub">Try a different search term</div>
+            </div>
+            : <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {result.results.map((p, i) => (
+                <div key={i} className={`pharm ${p.available ? "avail" : "unavail"}`}>
+                  <div className="row between" style={{ marginBottom: 8 }}>
+                    <div style={{ fontWeight: 800, fontSize: 16 }}>{p.name}</div>
+                    <span className={`badge ${p.available ? "b-sage" : "b-red"}`}>
+                      {p.available ? <><CheckCircle2 size={11} /> Available</> : <><X size={11} /> Unavailable</>}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 13, color: "var(--t2)", marginBottom: 12 }}>{p.address}</div>
+                  <div className="row between">
+                    {p.distance_km != null && (
+                      <span className="badge b-indigo">
+                        <MapPin size={11} /> {typeof p.distance_km === "number" ? p.distance_km.toFixed(1) : p.distance_km} km
+                      </span>
+                    )}
+                    {p.maps_link && (
+                      <a href={p.maps_link} target="_blank" rel="noopener noreferrer"
+                        style={{ fontSize: 13, fontWeight: 700, color: "var(--indigo)", textDecoration: "none", display: "flex", alignItems: "center", gap: 5 }}>
+                        <Navigation size={13} /> Directions
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          }
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Pharmacist Portal ─────────────────────────────────────────────────────────
+function PharmacistScreen({ lang }) {
+  const [fup, setFup] = useState([]);
+  const [loading, setLoad] = useState(true);
+  const [err, setErr] = useState(null);
+  const [patient, setPatient] = useState("Patient");
+  const [editing, setEditing] = useState(false);
+  const [nameVal, setNameVal] = useState("Patient");
+
+  const today = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+
+  useEffect(() => {
+    api.followup(lang)
+      .then(d => { setFup(Array.isArray(d) ? d : []); setLoad(false); })
+      .catch(e => { setErr(e.message); setLoad(false); });
+  }, [lang]);
+
+  const saveName = () => { setPatient(nameVal); setEditing(false); };
+
+  return (
+    <div className="screen">
+      <div className="rx-band">
+        <div style={{ fontSize: 11, fontWeight: 800, opacity: .7, textTransform: "uppercase", letterSpacing: 1 }}>
+          Aarogya+ · Pharmacist Portal
+        </div>
+        <div style={{ fontFamily: "var(--serif)", fontSize: 24, marginTop: 6 }}>Prescription Report</div>
+        <div style={{ fontSize: 13, opacity: .8, marginTop: 5 }}>For dispensing & verification</div>
+        <div style={{ fontSize: 12, opacity: .6, marginTop: 8, display: "flex", alignItems: "center", gap: 5 }}>
+          <Calendar size={12} /> {today}
+        </div>
+      </div>
+
+      <div className="card card-sm" style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: "var(--t3)", textTransform: "uppercase", letterSpacing: .8, marginBottom: 10 }}>Patient Information</div>
+        {editing
+          ? <div className="row gap8">
+            <input className="input" style={{ fontSize: 15, padding: "9px 13px" }}
+              value={nameVal} onChange={e => setNameVal(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && saveName()} />
+            <button className="btn btn-primary btn-sm" onClick={saveName}>Save</button>
+          </div>
+          : <div className="row between">
+            <div style={{ fontFamily: "var(--serif)", fontSize: 20 }}>{patient}</div>
+            <button className="btn btn-outline btn-sm no-print" onClick={() => setEditing(true)}>
+              <Pencil size={13} /> Edit
+            </button>
+          </div>
+        }
+      </div>
+
+      {loading && <Spinner />}
+      {err && <ErrBox msg={err} />}
+
+      {!loading && fup.length === 0 && !err && (
+        <div className="empty">
+          <div className="empty-icon"><ShieldPlus size={46} /></div>
+          <div className="empty-text">No active prescriptions</div>
+          <div className="empty-sub">Scan a prescription first, then come back here to generate a report.</div>
+        </div>
+      )}
+
+      {!loading && fup.length > 0 && (
+        <>
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div className="row between" style={{ marginBottom: 14 }}>
+              <div style={{ fontWeight: 800, fontSize: 16, display: "flex", alignItems: "center", gap: 7 }}>
+                <Pill size={16} style={{ color: "var(--sage)" }} /> Prescribed Medicines
+              </div>
+              <span className="badge b-sage">{fup.length} item{fup.length !== 1 ? "s" : ""}</span>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 6, background: "var(--sage-lt)", borderRadius: 8, padding: "10px 12px", marginBottom: 10 }}>
+              {["Medicine", "Days Left", "Ends", "Status"].map(h => (
+                <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "var(--sage)", textTransform: "uppercase", letterSpacing: .5 }}>{h}</div>
+              ))}
+            </div>
+
+            {fup.map((m, i) => {
+              const urgent = m.days_remaining <= 2;
+              const warn = m.days_remaining <= 5;
+              return (
+                <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 6, alignItems: "center", padding: "12px 0", borderBottom: i < fup.length - 1 ? "1px solid var(--cream-border)" : "none" }}>
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>{m.medicine_name}</div>
+                  <span className="badge b-indigo" style={{ fontSize: 11, justifySelf: "start" }}>{m.days_remaining}d</span>
+                  <div style={{ fontSize: 12, color: "var(--t2)" }}>{m.end_date}</div>
+                  <span className={`badge ${urgent ? "b-red" : warn ? "b-amber" : "b-sage"}`} style={{ fontSize: 11, justifySelf: "start" }}>
+                    {urgent ? "Refill Now" : warn ? "Refill Soon" : "Active"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="box-amber" style={{ marginBottom: 14 }}>
+            <div style={{ fontWeight: 800, fontSize: 14, color: "var(--amber)", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+              <Info size={15} /> Dispensing Notes
+            </div>
+            <div style={{ fontSize: 13, color: "#7A5412", lineHeight: 1.85 }}>
+              · Verify patient identity before dispensing<br />
+              · Check for drug-drug interactions<br />
+              · Counsel patient on food instructions and dose timing<br />
+              · Provide written schedule for complex regimens<br />
+              · Flag medicines with &lt; 3 days remaining for refill counselling
+            </div>
+          </div>
+
+          {fup.some(m => m.days_remaining <= 5) && (
+            <div className="box-warn" style={{ marginBottom: 14 }}>
+              <AlertTriangle size={20} style={{ color: "var(--red)", flexShrink: 0, marginTop: 2 }} />
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: "var(--red)" }}>Refill Alert</div>
+                <div style={{ fontSize: 13, color: "#8B2F2F", marginTop: 4, lineHeight: 1.5 }}>
+                  {fup.filter(m => m.days_remaining <= 5).map(m => m.medicine_name).join(", ")} — running low. Advise patient to refill promptly.
+                </div>
+              </div>
+            </div>
+          )}
+
+          <button className="btn btn-sage btn-full no-print" onClick={() => window.print()}>
+            <Printer size={18} /> Print Report
+          </button>
+
+          <div style={{ marginTop: 14, textAlign: "center", fontSize: 12, color: "var(--t3)" }} className="no-print">
+            Generated by <strong>Aarogya+</strong> · {today}<br />
+            Auto-generated — verify with a licensed pharmacist before dispensing.
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ROOT APP
+// ─────────────────────────────────────────────────────────────────────────────
+export default function App() {
+  const [screen, setScreen] = useState("home");
+  const [lang, setLang] = useState("en");
+  const [showLang, setShowLang] = useState(false);
+  const [scanned, setScanned] = useState([]);
+
+  const curLang = LANGS.find(l => l.code === lang);
+
+  const renderScreen = () => {
+    switch (screen) {
+      case "home":       return <HomeScreen go={setScreen} />;
+      case "symptoms":   return <SymptomsScreen lang={lang} />;
+      case "audio":      return <AudioScreen lang={lang} />;
+      case "scan":       return <ScanScreen lang={lang} onScanned={setScanned} />;
+      case "reminders":  return <RemindersScreen lang={lang} />;
+      case "locator":    return <LocatorScreen />;
+      case "pharmacist": return <PharmacistScreen lang={lang} scanned={scanned} />;
+      default:           return <HomeScreen go={setScreen} />;
+    }
+  };
+
+  return (
+    <>
+      <style>{STYLES}</style>
+      <div className="shell">
+
+        {/* Top bar */}
+        <div className="topbar">
+          <div className="logo" onClick={() => setScreen("home")}>
+            <ShieldPlus size={20} style={{ color: "var(--indigo)" }} />
+            Aarogya<span className="logo-dot">+</span>
+          </div>
+          <div className="lang-pill" onClick={() => setShowLang(v => !v)}>
+            <span>{curLang?.flag}</span>
+            <span>{curLang?.label}</span>
+            <ChevronDown size={12} />
+          </div>
+        </div>
+
+        {/* Language dropdown */}
+        {showLang && (
+          <>
+            <div style={{ position: "fixed", inset: 0, zIndex: 150 }} onClick={() => setShowLang(false)} />
+            <div className="lang-dropdown">
+              {LANGS.map(l => (
+                <div key={l.code} className={`lang-opt ${l.code === lang ? "sel" : ""}`}
+                  onClick={() => { setLang(l.code); setShowLang(false); }}>
+                  <span>{l.flag} {l.label}</span>
+                  {l.code === lang && <CheckCircle2 size={14} style={{ color: "var(--indigo)" }} />}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Screen */}
+        <div key={screen}>{renderScreen()}</div>
+
+        {/* Bottom nav */}
+        <div className="botnav">
+          {NAV.map(n => {
+            const Icon = n.icon;
+            return (
+              <div key={n.id} className={`navitem ${screen === n.id || (n.id === "symptoms" && screen === "audio") ? "active" : ""}`}
+                onClick={() => setScreen(n.id)}>
+                <Icon size={20} />
+                <span className="navlabel">{n.label}</span>
+              </div>
+            );
+          })}
+        </div>
+
+      </div>
+    </>
+  );
+}

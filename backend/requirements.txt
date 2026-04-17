@@ -1,0 +1,25 @@
+# Aarogya+ backend dependencies
+# Install with: pip install -r requirements.txt
+
+flask>=3.0.0
+flask-cors>=4.0.0
+python-dotenv>=1.0.0
+
+# LLM clients
+openai>=1.30.0          # used for Gemini + Ollama via OpenAI-compatible API
+ollama>=0.2.0           # native Ollama client (optional, falls back to openai)
+
+# OCR / Pipeline
+requests>=2.31.0
+
+# Translation
+deep-translator>=1.11.4
+
+# Audio transcription (optional — audio endpoint works without it)
+openai-whisper>=20231117
+
+# Reminder scheduler
+schedule>=1.2.1
+
+# Text-to-speech (optional — reminder engine works without it)
+pyttsx3>=2.90
