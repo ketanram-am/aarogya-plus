@@ -37,20 +37,25 @@ STRICT RULES:
 - No explanation
 - Must be valid JSON
 - Must start with { and end with }
+- ALL JSON KEYS MUST BE IN ENGLISH EXACTLY AS SHOWN IN THE SCHEMA. DO NOT TRANSLATE THE KEYS.
+- Translate only the VALUES into the user's language (e.g., Kannada, Hindi, Tamil) based on their input.
 
 IMPORTANT:
 - "name" MUST be a real, specific medical condition (e.g. "Common Cold", "Flu", "Allergic Rhinitis")
 - DO NOT use generic words like "High", "Low", "Condition", "Unknown"
 - DO NOT repeat the word "Condition" as a value
-- Provide 2 to 5 realistic conditions based on symptoms
+- YOU MUST EXTRACT MULTIPLE SYMPTOMS from the input text. Break them into distinct items in the list.
+- YOU MUST PROVIDE EXACTLY 3 to 5 realistic conditions. NEVER return just 1 condition.
 - Probabilities must be numbers between 0 and 1
-- Probabilities should roughly sum close to 1
+- Probabilities should roughly sum to 1.0
 
 Schema:
 {
-  "symptoms": ["symptom1", "symptom2"],
+  "symptoms": ["symptom1", "symptom2", "symptom3"],
   "predictions": [
-    {"name": "Common Cold", "probability": 0.6}
+    {"name": "Condition A", "probability": 0.5},
+    {"name": "Condition B", "probability": 0.3},
+    {"name": "Condition C", "probability": 0.2}
   ],
   "triage_advice": "Short, simple advice",
   "emergency_warning": "Only if serious symptoms exist, otherwise empty"
