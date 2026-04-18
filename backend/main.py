@@ -174,7 +174,14 @@ def analyze():
         if not text:
             return jsonify({"error": "Enter symptoms"}), 400
 
-        result = analyze_text(text)
+        english_text = text
+        if lang != "en":
+            try:
+                english_text = GoogleTranslator(source="auto", target="en").translate(text)
+            except Exception as e:
+                print(f"Translation to en failed: {e}")
+
+        result = analyze_text(english_text)
         result = translate_symptom_response(result, lang)
         return jsonify(result)
     except Exception as e:
