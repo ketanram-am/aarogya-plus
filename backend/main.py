@@ -303,29 +303,45 @@ def followup():
     except Exception as e:
         print(f"❌ /api/followup: {e}")
         return jsonify([])
-
 @app.get("/api/locate-medicine")
 def locate_medicine():
     try:
-        # ✅ Make name optional
         name = request.args.get("name", "").strip()
+        lat_raw = request.args.get("lat")
+        lng_raw = request.args.get("lng")
 
-        # ✅ Get coordinates safely
-        lat = float(request.args.get("lat"))
-        lng = float(request.args.get("lng"))
+        print(f"DEBUG: locate params: name='{name}', lat='{lat_raw}', lng='{lng_raw}'")
 
-        # ✅ Call your locator
-        results = find_medicine_nearby(name, lat, lng)
+        # ✅ Safe parsing (no 400)
+        try:
+            lat = float(lat_raw)
+            lng = float(lng_raw)
+        except Exception as e:
+            print(f"DEBUG: Float error: {e}")
+            return jsonify({
+                "results": [],
+                "error": "Invalid latitude/longitude"
+            })
 
-        # ✅ IMPORTANT: return directly (frontend expects this)
+        print(f"📍 Parsed location: {lat}, {lng}")
+
+        try:
+            results = find_medicine_nearby(name, lat, lng)
+        except Exception as e:
+            print(f"DEBUG: Locator failed: {e}")
+            return jsonify({
+                "results": [],
+                "error": "Pharmacy search failed"
+            })
+
         return jsonify(results)
 
-    except (ValueError, TypeError):
-        return jsonify({"error": "invalid lat/lng"}), 400
-
     except Exception as e:
-        print("❌ ERROR /api/locate-medicine:", e)
-        return jsonify({"error": "Something went wrong"}), 500
+        print(f"DEBUG: Route error: {e}")
+        return jsonify({
+            "results": [],
+            "error": "Internal server error"
+        })
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
