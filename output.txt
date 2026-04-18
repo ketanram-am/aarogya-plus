@@ -1,0 +1,68 @@
+Dr. Girish Ghanate
+MBBS - General Medicine
+Reg ID : KMC - 126501
+Rx ID : 520830977
+
+Name Surya Singh
+Age 24 Years
+Gender Male
+Height 175cms
+Weight 62kgs
+
+Diagnosis
+viral fever
+
+Description
+fever, cold, myalgia
+
+S.No.
+Prescribed Medicines
+Dosage
+Instructions
+
+1.
+TABLET AZITHROMYCIN (250MG)
+Daily: 1-0-1
+3 Days; After Meal;
+
+2.
+TABLET SINAREST (100MG)
+Daily: 1-0-1
+3 Days; After Meal;
+
+3.
+TABLET DOLO PARACETAMOL (650MG)
+Daily: 1-0-1
+3 Days; After Meal;
+
+Drug Allergies
+No known Allergies
+
+Lab Test
+1.
+
+Extracting medicines...
+Mistral raw output:
+ [
+  {
+    "medicine_name": "AZITHROMYCIN",
+    "dosage": "1-0-1",
+    "schedule": "1-0-1",
+    "duration": "3 Days",
+    "food_instruction": "After Meal"
+  },
+  {
+    "medicine_name": "SINAREST",
+    "dosage": "1-0-1",
+    "schedule": "1-0-1",
+    "duration": "3 Days",
+    "food_instruction": "After Meal"
+  },
+  {
+    "medicine_name": "DOLO PARACETAMOL",
+    "dosage": "1-0-1",
+    "schedule": "1-0-1",
+    "duration": "3 Days",
+    "food_instruction": "After Meal"
+  }
+]
