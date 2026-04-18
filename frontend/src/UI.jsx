@@ -3,7 +3,7 @@
  * Modular structure · Elderly-friendly design · Lucide icons
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   ShieldPlus, ChevronDown, CheckCircle2 
 } from "lucide-react";
@@ -13,6 +13,7 @@ import "./styles/UI.css";
 
 // Constants & Services
 import { LANGS, NAV } from "./constants";
+import { initTTS } from "./utils/tts";
 
 // Pages
 import { HomeScreen } from "./pages/HomeScreen";
@@ -27,6 +28,10 @@ export default function App() {
   const [lang, setLang] = useState("en");
   const [showLang, setShowLang] = useState(false);
   const [scanned, setScanned] = useState([]);
+
+  useEffect(() => {
+    initTTS();
+  }, []);
 
   const curLang = LANGS.find(l => l.code === lang);
 
