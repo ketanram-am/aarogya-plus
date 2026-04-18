@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 
 env_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=env_path)
-
+print(os.getenv("GEMINI_API_KEY"))
 # -- Clients -------------------------------------------------------------------
 ollama_client = OpenAI(
     base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1"),

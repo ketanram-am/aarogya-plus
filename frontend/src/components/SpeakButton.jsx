@@ -1,44 +1,25 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Mic, MicOff } from "lucide-react";
 import { t } from "../translations";
+import { speakText, stopSpeech } from "../utils/tts";
 
 export function SpeakButton({ text, lang }) {
-  const [speaking, setSpeaking] = React.useState(false);
-  const synth = window.speechSynthesis;
+  const [speaking, setSpeaking] = useState(false);
 
-  React.useEffect(() => {
-    return () => synth.cancel();
-  }, [synth]);
+  useEffect(() => {
+    return () => stopSpeech();
+  }, []);
 
   const toggleSpeak = () => {
     if (speaking) {
-      synth.cancel();
+      stopSpeech();
       setSpeaking(false);
       return;
     }
     
     if (!text) return;
 
-    synth.cancel(); // stop any ongoing speech
-    const utterance = new SpeechSynthesisUtterance(text);
-    
-    // Set appropriate BCP-47 language code for TTS
-    const langMap = {
-      en: "en-US", hi: "hi-IN", ta: "ta-IN", te: "te-IN",
-      kn: "kn-IN", es: "es-ES", fr: "fr-FR"
-    };
-    utterance.lang = langMap[lang] || "en-US";
-    utterance.rate = 0.9; // Slightly slower for elderly users
-
-    // Try to find a specific voice for the language if available
-    const voices = synth.getVoices();
-    const targetVoice = voices.find(v => v.lang.startsWith(utterance.lang.split('-')[0]));
-    if (targetVoice) utterance.voice = targetVoice;
-
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-
-    synth.speak(utterance);
+    speakText(text, lang, () => setSpeaking(false));
     setSpeaking(true);
   };
 

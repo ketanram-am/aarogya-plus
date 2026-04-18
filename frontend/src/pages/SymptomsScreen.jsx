@@ -24,38 +24,38 @@ export function SymptomsScreen({ lang }) {
   const startListening = () => {
     if (!SpeechRecognition) { setErr("Speech recognition not supported in this browser"); return; }
     const recognition = new SpeechRecognition();
-    const rLang = {en: "en-US", hi: "hi-IN", ta: "ta-IN", te: "te-IN", kn: "kn-IN", es: "es-ES", fr: "fr-FR"}; 
+    const rLang = { en: "en-US", hi: "hi-IN", ta: "ta-IN", te: "te-IN", kn: "kn-IN", es: "es-ES", fr: "fr-FR" };
     recognition.lang = rLang[lang] || "en-US";
     recognition.interimResults = false;
     recognition.continuous = false;
     setListening(true); setStatus(t("listening", lang)); setErr(null); setResult(null);
     recognition.start();
-    
+
     recognition.onresult = async (event) => {
       const recognized = event.results[0][0].transcript;
-      setTranscript(recognized); 
-      setListening(false); 
-      
+      setTranscript(recognized);
+      setListening(false);
+
       const combinedText = `${recognized} ${text}`.trim();
       if (combinedText) {
-         setLoad(true); setErr(null); setResult(null); setStatus(t("analyzing_symptoms", lang));
-         try {
-           const d = await api.analyze(combinedText, lang);
-           d.error ? (setErr(d.error), setStatus(t("something_wrong", lang))) : (setResult(d), setStatus(t("done_results", lang)));
-         } catch (e) {
-           setErr(e.message || "Server not responding");
-           setStatus(t("connection_failed", lang));
-         } finally {
-           setLoad(false);
-         }
+        setLoad(true); setErr(null); setResult(null); setStatus(t("analyzing_symptoms", lang));
+        try {
+          const d = await api.analyze(combinedText, lang);
+          d.error ? (setErr(d.error), setStatus(t("something_wrong", lang))) : (setResult(d), setStatus(t("done_results", lang)));
+        } catch (e) {
+          setErr(e.message || "Server not responding");
+          setStatus(t("connection_failed", lang));
+        } finally {
+          setLoad(false);
+        }
       } else {
-         setStatus(t("tap_mic_start", lang));
+        setStatus(t("tap_mic_start", lang));
       }
     };
-    recognition.onerror = (event) => { 
-      setListening(false); 
-      setStatus(t("recognition_failed", lang)); 
-      setErr(t("could_not_understand", lang) + " (Error: " + event.error + ")"); 
+    recognition.onerror = (event) => {
+      setListening(false);
+      setStatus(t("recognition_failed", lang));
+      setErr(t("could_not_understand", lang) + " (Error: " + event.error + ")");
     };
     recognition.onend = () => setListening(false);
   };

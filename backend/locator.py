@@ -1,102 +1,232 @@
 """
-locator.py - Find nearby pharmacies via OpenStreetMap (no API key)
-Called by: main.py  GET /api/locate-medicine
+locator.py — Final Stable + Clean Address Pharmacy Locator
 """
 
-import random
 import requests
-from pathlib import Path
-from dotenv import load_dotenv
+import time
+from math import radians, sin, cos, sqrt, atan2
+from datetime import datetime
 
-load_dotenv(dotenv_path=Path(__file__).parent / ".env")
+# ---------------------------------------------
+# CONFIG
+# ---------------------------------------------
 
-
-# Mock fallback (used if no lat/lng)
-_MOCK_PHARMACIES = [
-    {"name": "Apollo Pharmacy",      "address": "Main Road, Near Signal",  "distance_km": 0.5},
-    {"name": "MedPlus",              "address": "2nd Cross, Bus Stand",     "distance_km": 1.2},
-    {"name": "Wellness Forever",     "address": "MG Road, Opp Park",       "distance_km": 0.9},
-    {"name": "Local Medical Store",  "address": "Gandhi Nagar, 3rd Street", "distance_km": 0.3},
-    {"name": "Netmeds Store",        "address": "City Centre Mall",         "distance_km": 2.1},
-]
+DEFAULT_OPEN = 9
+DEFAULT_CLOSE = 21
 
 
 # ---------------------------------------------
-# HELPERS
+# TIME + STATUS
 # ---------------------------------------------
 
-def _simulate_availability(medicine_name: str) -> bool:
-    """Stable pseudo-random availability"""
-    return random.random() > 0.35
+def _default_hours():
+    return "Open 9:00 AM - 9:00 PM"
 
-
-def _enrich_mock(medicine_name: str) -> list[dict]:
-    return [
-        {
-            "name":        p["name"],
-            "address":     p["address"],
-            "distance_km": p["distance_km"],
-            "location":    None,
-            "maps_link":   f"https://www.openstreetmap.org/search?query={p['name'].replace(' ', '+')}",
-            "available":   _simulate_availability(medicine_name),
-        }
-        for p in _MOCK_PHARMACIES
-    ]
+def _is_open_now():
+    now = datetime.now().hour
+    return DEFAULT_OPEN <= now < DEFAULT_CLOSE
 
 
 # ---------------------------------------------
-# MAIN FUNCTION (OSM)
+# HAVERSINE (fallback distance)
 # ---------------------------------------------
 
-def find_medicine_nearby(medicine_name: str, lat: float | None, lng: float | None) -> list[dict]:
-    """
-    Return up to 5 nearby pharmacies using OpenStreetMap (Overpass API)
-    Falls back to mock if no coordinates
-    """
+def _haversine(lat1, lng1, lat2, lng2):
+    lat1, lng1, lat2, lng2 = map(radians, [lat1, lng1, lat2, lng2])
 
-    if not lat or not lng:
-        print("INFO Locator: using mock pharmacies (no coordinates).")
-        return _enrich_mock(medicine_name)
+    dlat = lat2 - lat1
+    dlng = lng2 - lng1
 
+    a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlng / 2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+
+    return round(6371 * c, 2)
+
+
+# ---------------------------------------------
+# OSRM ROAD DISTANCE (SAFE)
+# ---------------------------------------------
+
+def _get_road_distance(lat1, lng1, lat2, lng2):
     try:
-        url = "https://overpass-api.de/api/interpreter"
+        url = f"http://router.project-osrm.org/route/v1/driving/{lng1},{lat1};{lng2},{lat2}?overview=false"
+        res = requests.get(url, timeout=6).json()
 
-        # Overpass query to find pharmacies within 3km
-        query = f"""
-        [out:json];
-        node
-          [amenity=pharmacy]
-          (around:3000,{lat},{lng});
-        out;
-        """
+        if "routes" in res and len(res["routes"]) > 0:
+            meters = res["routes"][0]["distance"]
+            return round(meters / 1000, 2)
 
-        response = requests.post(url, data=query, timeout=10)
-        response.raise_for_status()
-        data = response.json()
+        return None
+    except Exception as e:
+        print("OSRM error:", e)
+        return None
 
-        pharmacies = []
 
-        for place in data.get("elements", [])[:5]:
-            tags = place.get("tags", {})
+# ---------------------------------------------
+# REVERSE GEOCODE (SHORT ADDRESS)
+# ---------------------------------------------
 
-            pharmacies.append({
-                "name": tags.get("name", "Pharmacy"),
-                "address": tags.get("addr:street", "Nearby area"),
-                "location": {
-                    "lat": place.get("lat"),
-                    "lng": place.get("lon"),
-                },
-                "distance_km": None,
-                "maps_link": f"https://www.openstreetmap.org/?mlat={place.get('lat')}&mlon={place.get('lon')}",
-                "available": _simulate_availability(medicine_name),
-            })
+def _reverse_geocode(lat, lon):
+    try:
+        url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}"
+        res = requests.get(
+            url,
+            headers={"User-Agent": "aarogya-app"},
+            timeout=5
+        ).json()
 
-        if not pharmacies:
-            print("INFO No OSM results, using mock fallback.")
-            return _enrich_mock(medicine_name)
+        addr = res.get("address", {})
 
-        return pharmacies
+        # Extract meaningful short parts
+        area = (
+            addr.get("suburb") or
+            addr.get("neighbourhood") or
+            addr.get("village") or
+            addr.get("town") or
+            addr.get("city") or
+            ""
+        )
+
+        city = addr.get("city") or addr.get("state_district") or ""
+
+        if area and city:
+            return f"{area}, {city}"
+        elif city:
+            return city
+        else:
+            return "Nearby area"
 
     except Exception as e:
-        print(f"ERROR OSM error: {e} - falling back to mock data.")
-        return _enrich_mock(medicine_name)
+        print("Geocode error:", e)
+        return "Nearby area"
+
+
+# ---------------------------------------------
+# MAIN FUNCTION
+# ---------------------------------------------
+
+def find_medicine_nearby(_, lat, lng):
+
+    try:
+        lat = float(lat)
+        lng = float(lng)
+
+        print(f"📍 Searching near: {lat}, {lng}")
+
+        url = "https://overpass-api.de/api/interpreter"
+
+        query = f"""
+        [out:json][timeout:25];
+        (
+          node["amenity"="pharmacy"](around:5000,{lat},{lng});
+          way["amenity"="pharmacy"](around:5000,{lat},{lng});
+        );
+        out center;
+        """
+
+        # Retry Overpass
+        for attempt in range(2):
+            try:
+                response = requests.post(url, data=query, timeout=20)
+                response.raise_for_status()
+                data = response.json()
+                break
+            except Exception as e:
+                print(f"⚠️ Retry {attempt+1} failed:", e)
+                time.sleep(1)
+        else:
+            return {"results": [], "error": "Map service is busy"}
+
+        elements = data.get("elements", [])
+        print(f"✅ Found {len(elements)} raw results")
+
+        pharmacies = []
+        seen = set()
+
+        # ---------------------------------------------
+        # STEP 1: COLLECT + HAVERSINE
+        # ---------------------------------------------
+
+        for place in elements:
+            tags = place.get("tags", {})
+            p_id = place.get("id")
+
+            if p_id in seen:
+                continue
+            seen.add(p_id)
+
+            if place["type"] == "node":
+                p_lat = place.get("lat")
+                p_lng = place.get("lon")
+            else:
+                center = place.get("center", {})
+                p_lat = center.get("lat")
+                p_lng = center.get("lon")
+
+            if p_lat is None or p_lng is None:
+                continue
+
+            approx_distance = _haversine(lat, lng, p_lat, p_lng)
+
+            pharmacies.append({
+                "id": p_id,
+                "name": tags.get("name") or tags.get("name:en") or "Local Pharmacy",
+                "lat": p_lat,
+                "lon": p_lng,
+                "distance_km": approx_distance,
+                "phone": tags.get("phone") or tags.get("contact:phone") or "Not available",
+                "is_open_now": _is_open_now(),
+                "opening_hours_display": tags.get("opening_hours") or _default_hours(),
+                "maps_link": f"https://www.openstreetmap.org/directions?engine=osrm_car&route={lat},{lng};{p_lat},{p_lng}",
+            })
+
+        # ---------------------------------------------
+        # STEP 2: SHORTLIST
+        # ---------------------------------------------
+
+        pharmacies.sort(key=lambda x: x["distance_km"])
+        pharmacies = pharmacies[:12]
+
+        # ---------------------------------------------
+        # STEP 3: ROAD DISTANCE (WITH FALLBACK)
+        # ---------------------------------------------
+
+        final_list = []
+
+        for p in pharmacies:
+            road_distance = _get_road_distance(lat, lng, p["lat"], p["lon"])
+
+            if road_distance is not None:
+                p["distance_km"] = road_distance
+
+            final_list.append(p)
+
+        # ---------------------------------------------
+        # STEP 4: SORT FINAL
+        # ---------------------------------------------
+
+        final_list.sort(key=lambda x: x["distance_km"])
+        top5 = final_list[:5]
+
+        # ---------------------------------------------
+        # STEP 5: CLEAN ADDRESS
+        # ---------------------------------------------
+
+        for p in top5[:3]:
+            p["address"] = _reverse_geocode(p["lat"], p["lon"])
+
+        for p in top5[3:]:
+            p["address"] = "Nearby area"
+
+        return {
+            "results": top5,
+            "count": len(top5),
+            "note": "Top 5 pharmacies (clean address view)"
+        }
+
+    except Exception as e:
+        print("❌ SYSTEM ERROR:", e)
+        return {
+            "results": [],
+            "error": "Something went wrong"
+        }

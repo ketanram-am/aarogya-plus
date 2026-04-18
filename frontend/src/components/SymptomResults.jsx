@@ -3,6 +3,7 @@ import { Mic, Thermometer, Stethoscope, Heart, CircleAlert, Volume2, Square } fr
 import { t } from "../translations";
 import { SevBadge } from "./SevBadge";
 import { probColor } from "../utils/helpers";
+import { speakText, stopSpeech } from "../utils/tts";
 
 export function SymptomResults({ data, lang = "en" }) {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -18,7 +19,7 @@ export function SymptomResults({ data, lang = "en" }) {
 
   const handleToggleAudio = () => {
     if (isPlaying) {
-      window.speechSynthesis.cancel();
+      stopSpeech();
       setIsPlaying(false);
       return;
     }
@@ -33,36 +34,7 @@ export function SymptomResults({ data, lang = "en" }) {
       warning ? `${t("warning", lang)}: ${warning}.` : ""
     ].filter(Boolean).join(" ");
 
-    const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    
-    const langMap = {
-      en: "en-US",
-      hi: "hi-IN",
-      ta: "ta-IN",
-      te: "te-IN",
-      kn: "kn-IN",
-      es: "es-ES",
-      fr: "fr-FR"
-    };
-    utterance.lang = langMap[lang] || "en-US";
-    utterance.rate = 0.95;
-    utterance.pitch = 1.0;
-
-    let voices = window.speechSynthesis.getVoices();
-    if (voices.length > 0) {
-      const preferredVoices = voices.filter(v => v.lang.startsWith(utterance.lang.split('-')[0]));
-      const naturalVoice = preferredVoices.find(v => v.name.toLowerCase().includes('natural') || v.name.toLowerCase().includes('google') || v.name.toLowerCase().includes('online'));
-      if (naturalVoice) {
-        utterance.voice = naturalVoice;
-      } else if (preferredVoices.length > 0) {
-        utterance.voice = preferredVoices[0];
-      }
-    }
-
-    utterance.onend = () => setIsPlaying(false);
-    utterance.onerror = () => setIsPlaying(false);
-
-    window.speechSynthesis.speak(utterance);
+    speakText(textToSpeak, lang, () => setIsPlaying(false));
     setIsPlaying(true);
   };
 
