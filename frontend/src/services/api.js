@@ -80,4 +80,10 @@ export const api = {
 
   prescription: (id, lang) =>
     get(`/api/prescriptions/${id}?lang=${lang}`),
+
+  savePrescription: () =>
+    post("/api/save-prescription", {}),
+
+  deletePrescription: (id) =>
+    fetch(BASE + `/api/prescriptions/${id}`, { method: "DELETE" }).then(handleRes),
 };

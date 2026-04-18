@@ -63,6 +63,7 @@ SCHEDULE_MAP_DAILY: dict           = {}   # date -> list of dose dicts
 TAKEN: dict[str, bool]             = {}   # "MedName_HH:MM" -> True/False
 MISSED_COUNT: dict[str, int]       = {}
 _SCHEDULER_STARTED: bool           = False
+SCAN_DATE: date | None             = None
 _LOCK = threading.Lock()
 
 
@@ -101,13 +102,14 @@ def initialize(meds_json: list[dict]) -> None:
     Called after a prescription scan.
     Builds the daily schedule and starts the background scheduler.
     """
-    global MEDS, SCHEDULE_MAP_DAILY, TAKEN, MISSED_COUNT, _SCHEDULER_STARTED
+    global MEDS, SCHEDULE_MAP_DAILY, TAKEN, MISSED_COUNT, _SCHEDULER_STARTED, SCAN_DATE
 
     with _LOCK:
         MEDS              = meds_json
         TAKEN             = {}
         MISSED_COUNT      = {}
         SCHEDULE_MAP_DAILY = {}
+        SCAN_DATE         = date.today()
 
         today     = date.today()
         medicines = [Medicine(**{k: v for k, v in m.items() if k in Medicine.__dataclass_fields__})
@@ -156,12 +158,13 @@ def mark_taken(medicine_name: str, time: str) -> None:
 def get_followup() -> list[dict]:
     """Return days-remaining and end date for each active medicine."""
     today  = date.today()
+    start_date = SCAN_DATE if SCAN_DATE else today
     result = []
     for med in MEDS:
         raw_dur = med.get("duration", "1 Day")
         match   = re.search(r"\d+", raw_dur)
         days    = int(match.group()) if match else 1
-        end_dt  = today + timedelta(days=days - 1)
+        end_dt  = start_date + timedelta(days=days - 1)
         remaining = max(0, (end_dt - today).days)
         result.append({
             "medicine_name": med.get("medicine_name", ""),

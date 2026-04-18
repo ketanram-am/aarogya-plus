@@ -108,29 +108,74 @@ def normalize_to_english(data: list[dict]) -> list[dict]:
 
 
 def translate_list(data: list[dict], lang: str) -> list[dict]:
-    """Translate all string values in a list of dicts to target lang."""
+    """Translate string values in a list of dicts.
+    Handles brand names like DOLO by converting to Title Case before translation."""
     if lang == "en" or not data:
         return data
 
-    texts, counts = [], []
+    # Fields that should NOT be translated (pure identifiers or images)
+    SKIP_KEYS = {"dosage", "medicine_image"}
+
+    texts, key_map = [], []
     for item in data:
-        row_texts = [v for v in item.values() if isinstance(v, str)]
-        texts.extend(row_texts)
-        counts.append(len(row_texts))
+        for k, v in item.items():
+            if isinstance(v, str) and k not in SKIP_KEYS:
+                # Convert all-caps brand names to Title Case for better translation
+                val = v.title() if k == "medicine_name" and v.isupper() else v
+                texts.append(val)
+                key_map.append((item, k))
 
     translated = batch_translate(texts, lang)
 
-    out, idx = [], 0
-    for item, count in zip(data, counts):
-        new_item = {}
-        for k, v in item.items():
-            if isinstance(v, str):
-                new_item[k] = translated[idx] if idx < len(translated) else v
-                idx += 1
-            else:
-                new_item[k] = v
-        out.append(new_item)
-    return out
+    for i, (item, k) in enumerate(key_map):
+        if i < len(translated):
+            item[k] = translated[i]
+
+    return data
+
+def translate_prescription(rx: dict, lang: str) -> dict:
+    """Helper to translate a single prescription (meta + medicines)."""
+    if not rx or lang == "en":
+        return rx
+    # Translate meta fields
+    meta_keys = ["doctor_name", "doctor_speciality", "patient_name", "diagnosis", "description"]
+    texts, map_keys = [], []
+    for k in meta_keys:
+        if rx.get(k):
+            texts.append(rx[k])
+            map_keys.append(k)
+    
+    translated = batch_translate(texts, lang)
+    for i, k in enumerate(map_keys):
+        rx[k] = translated[i]
+        
+    # Translate medicines list
+    if rx.get("prescription_medicines"):
+        translate_list(rx["prescription_medicines"], lang)
+    
+    return rx
+
+def translate_history(history: list[dict], lang: str) -> list[dict]:
+    """Helper to translate the entire history list."""
+    if not history or lang == "en":
+        return history
+    # Translate each item
+    for rx in history:
+        # Translate main display fields
+        fields = ["doctor_name", "patient_name", "diagnosis"]
+        texts = [rx.get(f) for f in fields if rx.get(f)]
+        if texts:
+            trans = batch_translate(texts, lang)
+            idx = 0
+            for f in fields:
+                if rx.get(f):
+                    rx[f] = trans[idx]
+                    idx += 1
+        # Also translate nested medicines if they exist
+        if rx.get("prescription_medicines"):
+            translate_list(rx["prescription_medicines"], lang)
+    return history
+
 
 
 # -----------------------------------------------------------------------------
@@ -245,9 +290,13 @@ def analyze():
 #             os.unlink(path)
 
 
+# Store the last scan result temporarily so the user can choose to save it
+_last_scan = {}
+
 @app.post("/api/scan")
 def scan():
-    """POST multipart { image: File, lang } → medicine list + start reminders."""
+    """POST multipart { image: File, lang } → medicine list + start reminders. Does NOT auto-save to history."""
+    global _last_scan
     path = None
     try:
         file = request.files.get("image")
@@ -263,13 +312,23 @@ def scan():
             return jsonify({"error": "No medicines detected. Try a clearer image."}), 400
 
         meds = pipeline_res["medicines"]
-        patient_meta = pipeline_res["patient"]
+        patient_meta = pipeline_res.get("patient", {})
         
-        # Save to database and upload image
-        prescription_id = save_prescription(patient_meta, meds, path)
+        # Store scan data temporarily (user must explicitly save to history)
+        import base64
+        image_b64 = ""
+        if path and os.path.exists(path):
+            with open(path, "rb") as img_f:
+                image_b64 = base64.b64encode(img_f.read()).decode("utf-8")
+        
+        _last_scan = {
+            "patient": patient_meta,
+            "medicines": meds,
+            "image_b64": image_b64
+        }
 
-        meds = normalize_to_english(meds)
-        initialize(meds)                        # start reminder scheduler
+        meds_for_reminders = normalize_to_english([m.copy() for m in meds])
+        initialize(meds_for_reminders)           # start reminder scheduler
         
         # Convert schedules to English words so the translation API can translate them dynamically
         sched_map = {
@@ -278,13 +337,19 @@ def scan():
             "1-0-1": "Morning & Night", "0-1-1": "Afternoon & Night",
             "1-1-1": "3 times daily"
         }
-        for m in meds:
+        meds_display = normalize_to_english([m.copy() for m in meds])
+        for m in meds_display:
             if m.get("schedule") in sched_map:
                 m["schedule"] = sched_map[m["schedule"]]
 
-        translated_meds = translate_list(meds, lang)
+        translated_meds = translate_list(meds_display, lang)
 
-        return jsonify({"prescription_id": prescription_id, "medicines": translated_meds, "message": "Reminders scheduled [OK]"})
+        return jsonify({
+            "medicines": translated_meds,
+            "patient": patient_meta,
+            "message": "Reminders scheduled [OK]",
+            "can_save": True
+        })
 
     except Exception as e:
         print(f"ERROR /api/scan: {e}")
@@ -299,13 +364,39 @@ def scan():
         if path and os.path.exists(path):
             os.unlink(path)
 
+
+@app.post("/api/save-prescription")
+def save_rx():
+    """POST — Save the last scanned prescription to medical history. Checks for duplicates."""
+    global _last_scan
+    try:
+        if not _last_scan or not _last_scan.get("medicines"):
+            return jsonify({"error": "No recent scan to save. Please scan a prescription first."}), 400
+        
+        patient_meta = _last_scan["patient"]
+        meds = _last_scan["medicines"]
+        image_b64 = _last_scan.get("image_b64", "")
+        
+        result = save_prescription(patient_meta, meds, image_b64)
+        
+        if result == "DUPLICATE":
+            return jsonify({"message": "This prescription is already saved in your medical history.", "duplicate": True})
+        elif result:
+            _last_scan = {}  # Clear after successful save
+            return jsonify({"message": "Saved to medical history!", "prescription_id": result})
+        else:
+            return jsonify({"error": "Could not save. Check database connection."}), 500
+    except Exception as e:
+        print(f"ERROR /api/save-prescription: {e}")
+        return jsonify({"error": f"Save failed: {str(e)[:100]}"}), 500
+
 @app.get("/api/prescriptions")
-def list_prescriptions():
-    """GET ?lang=en -> historical prescriptions."""
+def history():
+    """GET ?lang=en → past prescriptions list."""
     try:
         lang = request.args.get("lang", "en")
         history = get_all_prescriptions()
-        return jsonify(history)
+        return jsonify(translate_history(history, lang))
     except Exception as e:
         print(f"ERROR /api/prescriptions: {e}")
         return jsonify([])
@@ -315,10 +406,20 @@ def get_prescription(pid):
     try:
         lang = request.args.get("lang", "en")
         rx = get_prescription_by_id(pid)
-        return jsonify(rx)
+        return jsonify(translate_prescription(rx, lang))
     except Exception as e:
         print(f"ERROR /api/prescriptions/{pid}: {e}")
         return jsonify(None)
+
+@app.delete("/api/prescriptions/<string:pid>")
+def delete_prescription_route(pid):
+    try:
+        from database import delete_prescription
+        delete_prescription(pid)
+        return jsonify({"success": True})
+    except Exception as e:
+        print(f"ERROR DELETE /api/prescriptions/{pid}: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 @app.get("/api/reminders")

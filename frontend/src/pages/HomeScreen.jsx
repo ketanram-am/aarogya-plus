@@ -1,6 +1,6 @@
 import React from "react";
 import { 
-  Mic, PenLine, Camera, Pill, ChevronRight, Building2, ShieldPlus 
+  Mic, PenLine, Camera, Pill, ChevronRight, Building2, ClipboardList 
 } from "lucide-react";
 import { t } from "../translations";
 
@@ -27,6 +27,12 @@ export function HomeScreen({ go, lang = "en" }) {
       title: t('view_medicines', lang),
       desc: t('view_medicines_desc', lang),
       screen: "reminders"
+    },
+    {
+      icon: ClipboardList, bg: "var(--sage-lt)", iconColor: "var(--sage)",
+      title: t('medical_history', lang),
+      desc: t('medical_history_desc', lang),
+      screen: "pharmacist"
     },
   ];
 
@@ -82,23 +88,6 @@ export function HomeScreen({ go, lang = "en" }) {
             <div style={{ fontSize: 13, color: "var(--sage)", marginTop: 2 }}>{t("find_pharmacy_desc", lang)}</div>
           </div>
           <ChevronRight size={20} style={{ color: "var(--sage)" }} />
-        </div>
-      </div>
-
-      <div
-        className="card card-sm"
-        style={{ cursor: "pointer", background: "var(--terra-lt)", border: "1px solid #F4CABC" }}
-        onClick={() => go("pharmacist")}
-      >
-        <div className="row gap12">
-          <div style={{ width: 42, height: 42, borderRadius: 12, background: "var(--terracotta)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <ShieldPlus size={20} style={{ color: "#fff" }} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 800, fontSize: 15, color: "var(--terracotta)" }}>{t("pharmacist_portal", lang)}</div>
-            <div style={{ fontSize: 12, color: "#A04E2C", marginTop: 2 }}>{t("pharmacist_desc", lang)}</div>
-          </div>
-          <ChevronRight size={18} style={{ color: "var(--terracotta)" }} />
         </div>
       </div>
     </div>

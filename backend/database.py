@@ -23,39 +23,77 @@ else:
     print("⚠️ Supabase credentials missing from .env")
 
 
-def _encode_image_base64(image_path: str) -> str:
-    """Read image file and return base64-encoded data URI string."""
+def _check_duplicate(patient_meta: dict, medicines: list) -> bool:
+    """
+    Check if a prescription with IDENTICAL fields already exists in DB.
+    Matches: doctor_name + patient_name + diagnosis + exact medicine names.
+    """
+    if not supabase_client:
+        return False
+
     try:
-        if not image_path or not os.path.exists(image_path):
-            return ""
-        
-        mime_type, _ = mimetypes.guess_type(image_path)
-        mime_type = mime_type or "image/jpeg"
-        
-        with open(image_path, "rb") as f:
-            b64 = base64.b64encode(f.read()).decode("utf-8")
-        
-        return f"data:{mime_type};base64,{b64}"
+        doctor = (patient_meta.get("doctor_name") or "").strip().lower()
+        patient = (patient_meta.get("patient_name") or "").strip().lower()
+        diagnosis = (patient_meta.get("diagnosis") or "").strip().lower()
+
+        if not doctor and not patient:
+            return False  # Can't deduplicate without identifying info
+
+        # Find prescriptions with matching doctor + patient + diagnosis
+        query = supabase_client.table("prescriptions").select("id, prescription_medicines(medicine_name)")
+
+        if doctor:
+            query = query.ilike("doctor_name", f"%{doctor}%")
+        if patient:
+            query = query.ilike("patient_name", f"%{patient}%")
+        if diagnosis:
+            query = query.ilike("diagnosis", f"%{diagnosis}%")
+
+        res = query.execute()
+
+        if not res.data:
+            return False
+
+        # Compare medicine lists exactly
+        new_meds = sorted([m.get("medicine_name", "").strip().lower() for m in medicines])
+
+        for existing_rx in res.data:
+            existing_meds = sorted([
+                m.get("medicine_name", "").strip().lower()
+                for m in (existing_rx.get("prescription_medicines") or [])
+            ])
+            if existing_meds == new_meds:
+                print(f"🔁 Duplicate detected: matches prescription {existing_rx['id']}")
+                return True
+
+        return False
+
     except Exception as e:
-        print(f"❌ Image encode failed: {e}")
-        return ""
+        print(f"⚠️ Duplicate check failed (proceeding with save): {e}")
+        return False
 
 
-def save_prescription(patient_meta: dict, medicines: list, image_path: str) -> str:
-    """Save the full prescription data + image to Supabase DB."""
+def save_prescription(patient_meta: dict, medicines: list, image_b64: str = "") -> str:
+    """
+    Save prescription to Supabase DB.
+    Returns prescription_id on success, 'DUPLICATE' if already exists, None on failure.
+    """
     if not supabase_client:
         print("❌ Supabase client not initialized — skipping DB save.")
         return None
 
+    # Check for duplicates first
+    if _check_duplicate(patient_meta, medicines):
+        return "DUPLICATE"
+
     try:
-        # 1. Encode image as base64 data URI
-        image_data = _encode_image_base64(image_path)
-        if image_data:
+        # Build image data URI if base64 was provided
+        image_data = ""
+        if image_b64:
+            image_data = f"data:image/jpeg;base64,{image_b64}"
             print(f"✅ Image encoded ({len(image_data) // 1024} KB)")
-        else:
-            print("⚠️ No image data to save")
         
-        # 2. Insert into `prescriptions`
+        # Insert into `prescriptions`
         rx_data = {
             "patient_name": patient_meta.get("patient_name") or "Unknown Patient",
             "patient_age": str(patient_meta.get("patient_age", "")),
@@ -79,7 +117,7 @@ def save_prescription(patient_meta: dict, medicines: list, image_path: str) -> s
         prescription_id = rx_res.data[0]["id"]
         print(f"✅ Prescription saved: {prescription_id}")
         
-        # 3. Insert into `prescription_medicines`
+        # Insert into `prescription_medicines`
         meds_data = []
         for med in medicines:
             meds_data.append({
@@ -134,3 +172,17 @@ def get_prescription_by_id(pid: str) -> dict:
     except Exception as e:
         print(f"❌ DB fetch failed: {e}")
         return None
+
+
+def delete_prescription(pid: str):
+    """Delete a prescription and its medicines from Supabase."""
+    if not supabase_client:
+        return
+    try:
+        # Medicines cascade-delete via FK, but delete explicitly for safety
+        supabase_client.table("prescription_medicines").delete().eq("prescription_id", pid).execute()
+        supabase_client.table("prescriptions").delete().eq("id", pid).execute()
+        print(f"🗑️ Deleted prescription {pid}")
+    except Exception as e:
+        print(f"❌ Delete failed: {e}")
+        raise e
