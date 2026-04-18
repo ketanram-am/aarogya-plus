@@ -297,24 +297,28 @@ def followup():
         print(f"❌ /api/followup: {e}")
         return jsonify([])
 
-
 @app.get("/api/locate-medicine")
 def locate_medicine():
-    """GET ?name=Paracetamol&lat=12.97&lng=77.59 → nearby pharmacies."""
-    name = request.args.get("name", "").strip()
-    if not name:
-        return jsonify({"error": "medicine name required"}), 400
-
     try:
-        lat = float(request.args["lat"]) if "lat" in request.args else None
-        lng = float(request.args["lng"]) if "lng" in request.args else None
-    except (ValueError, KeyError):
+        # ✅ Make name optional
+        name = request.args.get("name", "").strip()
+
+        # ✅ Get coordinates safely
+        lat = float(request.args.get("lat"))
+        lng = float(request.args.get("lng"))
+
+        # ✅ Call your locator
+        results = find_medicine_nearby(name, lat, lng)
+
+        # ✅ IMPORTANT: return directly (frontend expects this)
+        return jsonify(results)
+
+    except (ValueError, TypeError):
         return jsonify({"error": "invalid lat/lng"}), 400
 
-    results = find_medicine_nearby(name, lat, lng)
-    return jsonify({"medicine": name, "results": results})
-
-
+    except Exception as e:
+        print("❌ ERROR /api/locate-medicine:", e)
+        return jsonify({"error": "Something went wrong"}), 500
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
