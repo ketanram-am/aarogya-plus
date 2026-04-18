@@ -17,7 +17,6 @@ import { LANGS, NAV } from "./constants";
 // Pages
 import { HomeScreen } from "./pages/HomeScreen";
 import { SymptomsScreen } from "./pages/SymptomsScreen";
-import { AudioScreen } from "./pages/AudioScreen";
 import { ScanScreen } from "./pages/ScanScreen";
 import { RemindersScreen } from "./pages/RemindersScreen";
 import { LocatorScreen } from "./pages/LocatorScreen";
@@ -34,8 +33,8 @@ export default function App() {
   const renderScreen = () => {
     switch (screen) {
       case "home":       return <HomeScreen go={setScreen} lang={lang} />;
-      case "symptoms":   return <SymptomsScreen lang={lang} />;
-      case "audio":      return <AudioScreen lang={lang} />;
+      case "symptoms":   
+      case "audio":      return <SymptomsScreen lang={lang} />;
       case "scan":       return <ScanScreen lang={lang} onScanned={setScanned} />;
       case "reminders":  return <RemindersScreen lang={lang} />;
       case "locator":    return <LocatorScreen lang={lang} />;
