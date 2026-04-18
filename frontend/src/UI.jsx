@@ -3,9 +3,10 @@
  * Modular structure · Elderly-friendly design · Lucide icons
  */
 
+
 import React, { useState, useEffect } from "react";
 import { 
-  ShieldPlus, ChevronDown, CheckCircle2 
+  ShieldPlus, ChevronDown,CheckCircle2 
 } from "lucide-react";
 
 // Styles

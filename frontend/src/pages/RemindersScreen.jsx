@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
-import {
-  RefreshCw, AlarmClock, Calendar, Pill, CheckCircle2, Sun, Sunset, Moon, AlertTriangle
+import { 
+  RefreshCw, AlarmClock,Users, Calendar, Pill, CheckCircle2, Waves, AlertTriangle 
 } from "lucide-react";
 import { t } from "../translations";
+import FamilyDashboard from "../components/FamilyDashboard";
 import { api } from "../services/api";
 import { Spinner } from "../components/Spinner";
 import { ErrBox } from "../components/ErrBox";
@@ -78,11 +79,11 @@ export function RemindersScreen({ lang }) {
       <div className="row between" style={{ marginBottom: 20 }}>
         <div>
           <div className="sh-eyebrow">{t("schedule", lang)}</div>
-          <div className="sh-title">Medicine {t("schedule", lang)}</div>
+          <div className="sh-title">{t("medicine_schedule_title", lang)}</div>
         </div>
         <button className="btn btn-outline btn-sm no-print" onClick={() => loadData(true)} disabled={refreshing}>
           <RefreshCw size={14} className={refreshing ? "spin-icon" : ""} />
-          {refreshing ? "…" : "Refresh"}
+          {refreshing ? "…" : t("refresh", lang)}
         </button>
       </div>
 
@@ -92,6 +93,10 @@ export function RemindersScreen({ lang }) {
         </button>
         <button className={`tab ${tab === "followup" ? "active" : ""}`} onClick={() => setTab("followup")}>
           <Calendar size={14} /> {t("follow_up", lang)} {fup.length > 0 ? `(${fup.length})` : ""}
+        </button>
+        {/* ADD THIS ↓ */}
+        <button className={`tab ${tab === "family" ? "active" : ""}`} onClick={() => setTab("family")}>
+          <Users size={14} /> {t("family", lang)}
         </button>
       </div>
 
@@ -226,7 +231,11 @@ export function RemindersScreen({ lang }) {
                 </div>
               );
             })}
-          </div>
+          </div>    
+      )}
+
+      {tab === "family" && (
+        <FamilyDashboard lang={lang} />
       )}
     </div>
   );
