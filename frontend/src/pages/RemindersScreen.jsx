@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { 
-  RefreshCw, AlarmClock,Users, Calendar, Pill, CheckCircle2, Waves, AlertTriangle 
+  RefreshCw, AlarmClock, Users, Calendar, Pill, CheckCircle2, Waves, AlertTriangle, Sun, Sunset, Moon
 } from "lucide-react";
 import { t } from "../translations";
 import FamilyDashboard from "../components/FamilyDashboard";
