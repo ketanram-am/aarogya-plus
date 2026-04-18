@@ -326,6 +326,9 @@ def locate_medicine():
     except Exception as e:
         print("❌ ERROR /api/locate-medicine:", e)
         return jsonify({"error": "Something went wrong"}), 500
+
+
+
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
