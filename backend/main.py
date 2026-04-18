@@ -39,14 +39,24 @@ CORS(app, resources={r"/api/*": {"origins": "*"}})
 # -----------------------------------------------------------------------------
 
 def batch_translate(texts: list[str], target_lang: str) -> list[str]:
-    """Translate a list of strings in one API call."""
+    """Translate a list of strings in one API call with fallback to individual translation."""
     if target_lang == "en" or not texts:
         return texts
     try:
-        return GoogleTranslator(source="auto", target=target_lang).translate_batch(texts)
+        translated = GoogleTranslator(source="auto", target=target_lang).translate_batch(texts)
+        # Ensure we return valid strings
+        return [t if t else texts[i] for i, t in enumerate(translated)]
     except Exception as e:
-        print(f"ERROR Batch translation error: {e}")
-        return texts
+        print(f"ERROR Batch translation error: {e}. Falling back to individual translation.")
+        fallback = []
+        translator = GoogleTranslator(source="auto", target=target_lang)
+        for t in texts:
+            try:
+                res = translator.translate(t)
+                fallback.append(res if res else t)
+            except Exception:
+                fallback.append(t)
+        return fallback
 
 
 def translate_symptom_response(result: dict, lang: str) -> dict:
@@ -60,6 +70,7 @@ def translate_symptom_response(result: dict, lang: str) -> dict:
     texts = (
         result.get("symptoms", [])
         + [c["name"] for c in result.get("conditions", [])]
+        + [c.get("simple_explanation", "") for c in result.get("conditions", [])]
         + [result.get("advice", ""), result.get("warning", "")]
     )
 
@@ -69,6 +80,9 @@ def translate_symptom_response(result: dict, lang: str) -> dict:
     idx = sym_len
     for cond in result.get("conditions", []):
         cond["name"] = translated[idx]
+        idx += 1
+    for cond in result.get("conditions", []):
+        cond["simple_explanation"] = translated[idx]
         idx += 1
     result["advice"] = translated[idx] if idx < len(translated) else result.get("advice", "")
     result["warning"] = translated[idx + 1] if idx + 1 < len(translated) else result.get("warning", "")
@@ -249,6 +263,18 @@ def scan():
 
         meds = normalize_to_english(meds)
         initialize(meds)                        # start reminder scheduler
+        
+        # Convert schedules to English words so the translation API can translate them dynamically
+        sched_map = {
+            "1-0-0": "Morning only", "0-1-0": "Afternoon only",
+            "0-0-1": "Night only", "1-1-0": "Morning & Afternoon",
+            "1-0-1": "Morning & Night", "0-1-1": "Afternoon & Night",
+            "1-1-1": "3 times daily"
+        }
+        for m in meds:
+            if m.get("schedule") in sched_map:
+                m["schedule"] = sched_map[m["schedule"]]
+
         translated_meds = translate_list(meds, lang)
 
         return jsonify({"medicines": translated_meds, "message": "Reminders scheduled [OK]"})
