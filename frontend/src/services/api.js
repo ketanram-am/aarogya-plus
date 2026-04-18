@@ -74,4 +74,10 @@ export const api = {
         name
       )}&lat=${lat}&lng=${lng}`
     ),
+
+  prescriptions: (lang) =>
+    get(`/api/prescriptions?lang=${lang}`),
+
+  prescription: (id, lang) =>
+    get(`/api/prescriptions/${id}?lang=${lang}`),
 };

@@ -20,6 +20,7 @@ from symptom import analyze_text
 from pipeline import run_pipeline
 from reminder import initialize, get_today, mark_taken, get_followup
 from locator import find_medicine_nearby
+from database import save_prescription, get_all_prescriptions, get_prescription_by_id
 
 # -- Try loading Whisper (optional - audio endpoint degrades gracefully) --------
 # try:
@@ -256,10 +257,16 @@ def scan():
             return jsonify({"error": "No image uploaded"}), 400
 
         path = save_temp(file)
-        meds = run_pipeline(path)
+        pipeline_res = run_pipeline(path)
 
-        if not meds:
+        if not pipeline_res or not pipeline_res.get("medicines"):
             return jsonify({"error": "No medicines detected. Try a clearer image."}), 400
+
+        meds = pipeline_res["medicines"]
+        patient_meta = pipeline_res["patient"]
+        
+        # Save to database and upload image
+        prescription_id = save_prescription(patient_meta, meds, path)
 
         meds = normalize_to_english(meds)
         initialize(meds)                        # start reminder scheduler
@@ -277,7 +284,7 @@ def scan():
 
         translated_meds = translate_list(meds, lang)
 
-        return jsonify({"medicines": translated_meds, "message": "Reminders scheduled [OK]"})
+        return jsonify({"prescription_id": prescription_id, "medicines": translated_meds, "message": "Reminders scheduled [OK]"})
 
     except Exception as e:
         print(f"ERROR /api/scan: {e}")
@@ -291,6 +298,27 @@ def scan():
     finally:
         if path and os.path.exists(path):
             os.unlink(path)
+
+@app.get("/api/prescriptions")
+def list_prescriptions():
+    """GET ?lang=en -> historical prescriptions."""
+    try:
+        lang = request.args.get("lang", "en")
+        history = get_all_prescriptions()
+        return jsonify(history)
+    except Exception as e:
+        print(f"ERROR /api/prescriptions: {e}")
+        return jsonify([])
+
+@app.get("/api/prescriptions/<string:pid>")
+def get_prescription(pid):
+    try:
+        lang = request.args.get("lang", "en")
+        rx = get_prescription_by_id(pid)
+        return jsonify(rx)
+    except Exception as e:
+        print(f"ERROR /api/prescriptions/{pid}: {e}")
+        return jsonify(None)
 
 
 @app.get("/api/reminders")

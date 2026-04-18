@@ -258,10 +258,55 @@ def enrich_with_purpose(medicines: list[dict]) -> list[dict]:
 # PUBLIC ENTRY POINT
 # -----------------------------------------------------------------------------
 
-def run_pipeline(image_path: str) -> list[dict]:
+_META_PROMPT = """
+You are reading raw OCR text from a doctor's prescription.
+Extract the patient and doctor metadata and return ONLY a valid JSON object — no markdown, no explanation.
+
+Schema:
+{{
+  "patient_name": "full patient name",
+  "patient_age": "age with unit e.g. 31 Years",
+  "patient_gender": "Male/Female",
+  "doctor_name": "full doctor name including Dr. prefix",
+  "doctor_speciality": "speciality e.g. MBBS - Internal Medicine",
+  "doctor_reg_id": "registration ID e.g. TNMC - 884321",
+  "diagnosis": "diagnosis text",
+  "description": "symptom description"
+}}
+
+Rules:
+- Read the text VERY carefully. The doctor name is usually at the TOP of the prescription after "Rx" or "Dr."
+- The patient name is usually after "Name" or "Patient Name"
+- If a field is genuinely not present, use ""
+- Return ONLY the JSON object, nothing else
+
+OCR Text:
+{text}
+"""
+
+def extract_patient_json(text: str) -> dict:
+    """Parse prescription OCR text -> dict of patient metadata using Gemini."""
+    try:
+        response = gemini_client.chat.completions.create(
+            model=GEMINI_MODEL,
+            temperature=0,
+            messages=[{"role": "user", "content": _META_PROMPT.format(text=text)}],
+        )
+        raw = response.choices[0].message.content.strip()
+        print(f"Gemini metadata raw:\n{raw[:300]}")
+        cleaned = re.sub(r"^```(?:json)?\s*", "", raw)
+        cleaned = re.sub(r"\s*```$", "", cleaned).strip()
+        result = json.loads(cleaned)
+        print(f"[OK] Patient metadata: {result.get('patient_name', '?')} / Dr. {result.get('doctor_name', '?')}")
+        return result
+    except Exception as e:
+        print(f"Patient JSON parse failed: {e}")
+        return {}
+
+def run_pipeline(image_path: str) -> dict:
     """
-    Full pipeline: image → OCR text → medicines JSON → FDA enrichment.
-    Returns a list of medicine dicts, or [] on failure.
+    Full pipeline: image → OCR text → medicines JSON + patient JSON → FDA enrichment.
+    Returns a dict with {"patient": {...}, "medicines": [...], "ocr_text": str}, or None on failure.
     """
     print(f"\nOCR: {image_path}")
     text = extract_text(image_path)
@@ -272,8 +317,16 @@ def run_pipeline(image_path: str) -> list[dict]:
 
     if not meds:
         print("No medicines extracted.")
-        return []
+        return None
 
     print(f"[OK] {len(meds)} medicine(s) found. Enriching with FDA data...")
     meds = enrich_with_purpose(meds)
-    return meds
+    
+    print("\nExtracting patient metadata via Gemini...")
+    patient_meta = extract_patient_json(text)
+
+    return {
+        "patient": patient_meta,
+        "medicines": meds
+    }
+
