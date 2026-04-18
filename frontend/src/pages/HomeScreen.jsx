@@ -13,13 +13,7 @@ export function HomeScreen({ go, lang = "en" }) {
     {
       icon: Mic, bg: "var(--indigo)", iconColor: "#fff",
       title: t('speak_symptoms', lang),
-      desc: t('speak_desc', lang),
-      screen: "audio"
-    },
-    {
-      icon: PenLine, bg: "var(--sage-lt)", iconColor: "var(--sage)",
-      title: t('type_symptoms', lang),
-      desc: t('type_desc', lang),
+      desc: t('speak_desc', lang) + " / " + t('type_desc', lang),
       screen: "symptoms"
     },
     {

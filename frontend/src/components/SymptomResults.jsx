@@ -1,14 +1,80 @@
-import React from "react";
-import { Mic, Thermometer, Stethoscope, Heart, CircleAlert } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Mic, Thermometer, Stethoscope, Heart, CircleAlert, Volume2, Square } from "lucide-react";
 import { t } from "../translations";
 import { SevBadge } from "./SevBadge";
 import { probColor } from "../utils/helpers";
 
 export function SymptomResults({ data, lang = "en" }) {
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      window.speechSynthesis.cancel();
+    };
+  }, []);
+
   if (!data) return null;
   const { symptoms = [], conditions = [], advice, warning, transcript } = data;
+
+  const handleToggleAudio = () => {
+    if (isPlaying) {
+      window.speechSynthesis.cancel();
+      setIsPlaying(false);
+      return;
+    }
+
+    const textToSpeak = [
+      symptoms.length > 0 ? `${t("detected_symptoms", lang)}: ${symptoms.join(", ")}.` : "",
+      conditions.length > 0 ? `${t("possible_conditions", lang)}: ${conditions.map(c => c.name).join(", ")}.` : "",
+      advice ? `${t("advice", lang)}: ${advice}.` : "",
+      warning ? `${t("warning", lang)}: ${warning}.` : ""
+    ].filter(Boolean).join(" ");
+
+    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+    
+    const langMap = {
+      en: "en-US",
+      hi: "hi-IN",
+      ta: "ta-IN",
+      te: "te-IN",
+      kn: "kn-IN",
+      es: "es-ES",
+      fr: "fr-FR"
+    };
+    utterance.lang = langMap[lang] || "en-US";
+    utterance.rate = 0.95;
+    utterance.pitch = 1.0;
+
+    let voices = window.speechSynthesis.getVoices();
+    if (voices.length > 0) {
+      const preferredVoices = voices.filter(v => v.lang.startsWith(utterance.lang.split('-')[0]));
+      const naturalVoice = preferredVoices.find(v => v.name.toLowerCase().includes('natural') || v.name.toLowerCase().includes('google') || v.name.toLowerCase().includes('online'));
+      if (naturalVoice) {
+        utterance.voice = naturalVoice;
+      } else if (preferredVoices.length > 0) {
+        utterance.voice = preferredVoices[0];
+      }
+    }
+
+    utterance.onend = () => setIsPlaying(false);
+    utterance.onerror = () => setIsPlaying(false);
+
+    window.speechSynthesis.speak(utterance);
+    setIsPlaying(true);
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 20 }}>
+      {data && (
+        <button 
+          onClick={handleToggleAudio}
+          className="btn btn-primary btn-full" 
+          style={{ marginBottom: 16, background: isPlaying ? "var(--red)" : undefined, border: isPlaying ? "none" : undefined }}
+        >
+          {isPlaying ? <Square size={18} fill="currentColor" /> : <Volume2 size={18} />}
+          {isPlaying ? t("stop_audio", lang) : t("listen_advice", lang)}
+        </button>
+      )}
       {transcript && (
         <div className="card card-sm">
           <div style={{ fontSize: 11, fontWeight: 800, color: "var(--t3)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10, display: "flex", alignItems: "center", gap: 5 }}>
