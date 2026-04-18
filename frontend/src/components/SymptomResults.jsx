@@ -26,7 +26,10 @@ export function SymptomResults({ data, lang = "en" }) {
 
     const textToSpeak = [
       symptoms.length > 0 ? `${t("detected_symptoms", lang)}: ${symptoms.join(", ")}.` : "",
-      conditions.length > 0 ? `${t("possible_conditions", lang)}: ${conditions.map(c => c.name).join(", ")}.` : "",
+      conditions.length > 0 ? `${t("possible_conditions", lang)}: ${conditions.map(c => {
+        const expl = c.simple_explanation ? `, ${c.simple_explanation}` : "";
+        return `${c.name}${expl}`;
+      }).join(". ")}.` : "",
       advice ? `${t("advice", lang)}: ${advice}.` : "",
       warning ? `${t("warning", lang)}: ${warning}.` : ""
     ].filter(Boolean).join(" ");
@@ -85,6 +88,11 @@ export function SymptomResults({ data, lang = "en" }) {
                       <span style={{ fontSize: 15, fontWeight: 800, color: probColor(c.probability || 0) }}>{pct}%</span>
                     </div>
                   </div>
+                  {c.simple_explanation && (
+                    <div style={{ fontSize: 13, color: "var(--t2)", lineHeight: 1.5, marginBottom: 8, fontStyle: "italic" }}>
+                      {c.simple_explanation}
+                    </div>
+                  )}
                   <div className="prog-wrap">
                     <div className="prog-fill" style={{ width: `${pct}%`, background: probColor(c.probability || 0) }} />
                   </div>

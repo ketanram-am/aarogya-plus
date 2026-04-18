@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from "react";
-import { 
-  MapPin, Loader2, Navigation, Building2, Phone, Clock, 
-  RefreshCw, CheckCircle2, XCircle, Circle, Star 
+import React, { useState, useEffect } from "react";
+import {
+  MapPin, Loader2, Navigation, Building2, Phone, Clock,
+  RefreshCw, CheckCircle2, XCircle, Circle, Star
 } from "lucide-react";
 
 import { t } from "../translations";
@@ -9,25 +9,24 @@ import { api } from "../services/api";
 import { Spinner } from "../components/Spinner";
 import { ErrBox } from "../components/ErrBox";
 
+const DEFAULT_LOCATION = { lat: 12.9716, lng: 77.5946 }; // Bangalore fallback
+
 function OpenBadge({ isOpen }) {
   if (isOpen === true) return (
     <span className="badge" style={{ background: "#EBF2EE", color: "#3D5C4E", fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}>
-      <CheckCircle2 size={14} />
-      Open now
+      <CheckCircle2 size={14} /> Open now
     </span>
   );
 
   if (isOpen === false) return (
     <span className="badge" style={{ background: "#FDEEEE", color: "#B03A3A", fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}>
-      <XCircle size={14} />
-      Closed
+      <XCircle size={14} /> Closed
     </span>
   );
 
   return (
     <span className="badge b-gray" style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}>
-      <Circle size={14} />
-      Hours unknown
+      <Circle size={14} /> Hours unknown
     </span>
   );
 }
@@ -38,23 +37,35 @@ export function LocatorScreen({ lang = "en" }) {
   const [result, setResult] = useState(null);
   const [err, setErr] = useState(null);
 
-  const posRef = useRef({ lat: 12.9716, lng: 77.5946 });
+  // ✅ FIXED LOCATION (never returns null)
+  const getPos = () =>
+    new Promise((res) => {
+      setLoc(true);
 
-  const getPos = () => new Promise(res => {
-    setLoc(true);
-    navigator.geolocation?.getCurrentPosition(
-      p => {
-        posRef.current = { lat: p.coords.latitude, lng: p.coords.longitude };
+      if (!navigator.geolocation) {
         setLoc(false);
-        res(posRef.current);
-      },
-      () => {
-        setLoc(false);
-        res(posRef.current);
-      },
-      { timeout: 6000 }
-    );
-  });
+        return res(DEFAULT_LOCATION);
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (p) => {
+          const coords = {
+            lat: p.coords.latitude,
+            lng: p.coords.longitude,
+          };
+
+          console.log("📍 REAL LOCATION:", coords);
+          setLoc(false);
+          res(coords);
+        },
+        () => {
+          console.log("⚠️ Using fallback location");
+          setLoc(false);
+          res(DEFAULT_LOCATION); // 🔥 KEY FIX
+        },
+        { timeout: 6000 }
+      );
+    });
 
   const search = async () => {
     setLoad(true);
@@ -63,11 +74,19 @@ export function LocatorScreen({ lang = "en" }) {
 
     const pos = await getPos();
 
+    console.log("🚀 Sending to API:", pos);
+
     try {
       const d = await api.locate("", pos.lat, pos.lng);
-      setResult(d);
+
+      if (d.error) {
+        setErr(d.error);
+      } else {
+        setResult(d);
+      }
+
     } catch (e) {
-      setErr(e.message);
+      setErr(e.message || "Something went wrong");
     } finally {
       setLoad(false);
     }
@@ -91,24 +110,23 @@ export function LocatorScreen({ lang = "en" }) {
       <div className="card" style={{ textAlign: "center", padding: 20 }}>
         <button
           className="btn btn-primary btn-full"
-          style={{ fontSize: 16, display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }}
           onClick={search}
           disabled={loading || locating}
         >
           {locating
-            ? <><Loader2 size={16} className="spin-icon" /> {t("getting_location", lang)}</>
+            ? <><Loader2 size={16} className="spin-icon" /> Getting location</>
             : loading
-              ? <><Loader2 size={16} className="spin-icon" /> {t("searching", lang)}</>
+              ? <><Loader2 size={16} className="spin-icon" /> Searching</>
               : <><RefreshCw size={16} /> Refresh Nearby Pharmacies</>
           }
         </button>
       </div>
 
-      {/* Location Info */}
+      {/* Info */}
       <div className="box-info mt12">
-        <MapPin size={16} style={{ color: "var(--indigo)" }} />
+        <MapPin size={16} />
         <div style={{ fontSize: 13 }}>
-          {t("using_location", lang)}
+          Using your current location
         </div>
       </div>
 
@@ -118,65 +136,112 @@ export function LocatorScreen({ lang = "en" }) {
       {/* Results */}
       {result && (
         <div className="mt20">
-          <div style={{ fontFamily: "var(--serif)", fontSize: 20, marginBottom: 14 }}>
-            {t("pharmacies_near_you", lang)}
+          <div style={{ fontSize: 20, marginBottom: 14 }}>
+            Pharmacies near you
           </div>
 
-          {!result.results || result.results.length === 0 ? (
+          {!result.results?.length ? (
             <div className="empty">
-              <div className="empty-icon"><Building2 size={46} /></div>
-              <div className="empty-text">{t("no_pharmacies_found", lang)}</div>
+              <Building2 size={46} />
+              <div>No pharmacies found nearby</div>
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {result.results.map((p, i) => (
-                <PharmCard key={i} p={p} rank={i} />
-              ))}
-            </div>
+            result.results.map((p, i) => (
+              <PharmCard key={i} p={p} rank={i} />
+            ))
           )}
         </div>
       )}
     </div>
   );
 }
-
 function PharmCard({ p, rank }) {
   return (
-    <div className="pharm" style={{
-      borderLeft: rank === 0 ? "4px solid var(--indigo)" : "4px solid var(--cream-border)"
-    }}>
-      <div className="row between">
-        <div style={{ fontWeight: 800 }}>{p.name}</div>
+    <div
+      style={{
+        borderRadius: 16,
+        padding: 16,
+        background: "#fff",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+        border: rank === 0 ? "2px solid #4F46E5" : "1px solid #eee",
+        display: "flex",
+        flexDirection: "column",
+        gap: 10
+      }}
+    >
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ fontWeight: 700, fontSize: 16 }}>
+          {p.name}
+        </div>
         <OpenBadge isOpen={p.is_open_now} />
       </div>
 
-      <div style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
-        <MapPin size={12} /> {p.address}
+      {/* Address */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#555", fontSize: 13 }}>
+        <MapPin size={14} />
+        {p.address}
       </div>
 
-      <div style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
-        <Clock size={13} /> {p.opening_hours_display}
+      {/* Time */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#555", fontSize: 13 }}>
+        <Clock size={14} />
+        {p.opening_hours_display}
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        {p.distance_km?.toFixed(1)} km
-        {rank === 0 && <Star size={14} style={{ color: "#E0A800" }} />}
+      {/* Distance */}
+      <div style={{ fontSize: 13, fontWeight: 500 }}>
+        {p.distance_km?.toFixed(1)} km {rank === 0 && <Star size={14} style={{ color: "#E0A800" }} />}
       </div>
 
-      <div style={{ display: "flex", gap: 10 }}>
-        <a href={`tel:${p.phone}`}>
-          <button className="btn btn-sage" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <Phone size={14} />
+      {/* Actions */}
+      <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+
+        {/* Call Button */}
+        <a href={`tel:${p.phone}`} style={{ flex: 1 }}>
+          <button
+            style={{
+              width: "100%",
+              padding: "10px 12px",
+              borderRadius: 10,
+              border: "none",
+              background: "#4F46E5",
+              color: "#fff",
+              fontWeight: 600,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              cursor: "pointer"
+            }}
+          >
+            <Phone size={16} />
             Call
           </button>
         </a>
 
-        <a href={p.maps_link} target="_blank">
-          <button className="btn btn-ghost" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <Navigation size={14} />
+        {/* Directions Button */}
+        <a href={p.maps_link} target="_blank" style={{ flex: 1 }}>
+          <button
+            style={{
+              width: "100%",
+              padding: "10px 12px",
+              borderRadius: 10,
+              border: "1px solid #ddd",
+              background: "#fff",
+              fontWeight: 600,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              cursor: "pointer"
+            }}
+          >
+            <Navigation size={16} />
             Directions
           </button>
         </a>
+
       </div>
     </div>
   );

@@ -1,7 +1,3 @@
-"""
-locator.py — Final Stable + Clean Address Pharmacy Locator
-"""
-
 import requests
 import time
 from math import radians, sin, cos, sqrt, atan2
@@ -13,6 +9,13 @@ from datetime import datetime
 
 DEFAULT_OPEN = 9
 DEFAULT_CLOSE = 21
+
+OVERPASS_SERVERS = [
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass-api.de/api/interpreter",
+    "https://lz4.overpass-api.de/api/interpreter",
+    "https://z.overpass-api.de/api/interpreter"
+]
 
 
 # ---------------------------------------------
@@ -28,12 +31,11 @@ def _is_open_now():
 
 
 # ---------------------------------------------
-# HAVERSINE (fallback distance)
+# HAVERSINE
 # ---------------------------------------------
 
 def _haversine(lat1, lng1, lat2, lng2):
     lat1, lng1, lat2, lng2 = map(radians, [lat1, lng1, lat2, lng2])
-
     dlat = lat2 - lat1
     dlng = lng2 - lng1
 
@@ -44,7 +46,7 @@ def _haversine(lat1, lng1, lat2, lng2):
 
 
 # ---------------------------------------------
-# OSRM ROAD DISTANCE (SAFE)
+# ROAD DISTANCE
 # ---------------------------------------------
 
 def _get_road_distance(lat1, lng1, lat2, lng2):
@@ -57,27 +59,21 @@ def _get_road_distance(lat1, lng1, lat2, lng2):
             return round(meters / 1000, 2)
 
         return None
-    except Exception as e:
-        print("OSRM error:", e)
+    except:
         return None
 
 
 # ---------------------------------------------
-# REVERSE GEOCODE (SHORT ADDRESS)
+# REVERSE GEOCODE
 # ---------------------------------------------
 
 def _reverse_geocode(lat, lon):
     try:
         url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}"
-        res = requests.get(
-            url,
-            headers={"User-Agent": "aarogya-app"},
-            timeout=5
-        ).json()
+        res = requests.get(url, headers={"User-Agent": "aarogya-app"}, timeout=5).json()
 
         addr = res.get("address", {})
 
-        # Extract meaningful short parts
         area = (
             addr.get("suburb") or
             addr.get("neighbourhood") or
@@ -96,8 +92,7 @@ def _reverse_geocode(lat, lon):
         else:
             return "Nearby area"
 
-    except Exception as e:
-        print("Geocode error:", e)
+    except:
         return "Nearby area"
 
 
@@ -113,38 +108,47 @@ def find_medicine_nearby(_, lat, lng):
 
         print(f"📍 Searching near: {lat}, {lng}")
 
-        url = "https://overpass-api.de/api/interpreter"
-
         query = f"""
         [out:json][timeout:25];
         (
-          node["amenity"="pharmacy"](around:5000,{lat},{lng});
-          way["amenity"="pharmacy"](around:5000,{lat},{lng});
+          node["amenity"="pharmacy"](around:10000,{lat},{lng});
+          way["amenity"="pharmacy"](around:10000,{lat},{lng});
         );
         out center;
         """
 
-        # Retry Overpass
-        for attempt in range(2):
-            try:
-                response = requests.post(url, data=query, timeout=20)
-                response.raise_for_status()
-                data = response.json()
+        data = None
+
+        # 🔥 MULTI SERVER + RETRY
+        for server in OVERPASS_SERVERS:
+            for attempt in range(4):
+                try:
+                    print(f"🌐 {server} attempt {attempt+1}")
+                    response = requests.post(server, data=query, timeout=40)
+                    response.raise_for_status()
+                    data = response.json()
+                    break
+                except Exception as e:
+                    print("⚠️", e)
+                    time.sleep(1)
+
+            if data:
                 break
-            except Exception as e:
-                print(f"⚠️ Retry {attempt+1} failed:", e)
-                time.sleep(1)
-        else:
-            return {"results": [], "error": "Map service is busy"}
+
+        if not data:
+            return {
+                "results": [],
+                "error": "Live pharmacy data temporarily unavailable"
+            }
 
         elements = data.get("elements", [])
-        print(f"✅ Found {len(elements)} raw results")
+        print(f"✅ Found {len(elements)} results")
 
         pharmacies = []
         seen = set()
 
         # ---------------------------------------------
-        # STEP 1: COLLECT + HAVERSINE
+        # COLLECT DATA
         # ---------------------------------------------
 
         for place in elements:
@@ -166,62 +170,51 @@ def find_medicine_nearby(_, lat, lng):
             if p_lat is None or p_lng is None:
                 continue
 
-            approx_distance = _haversine(lat, lng, p_lat, p_lng)
+            dist = _haversine(lat, lng, p_lat, p_lng)
 
             pharmacies.append({
                 "id": p_id,
-                "name": tags.get("name") or tags.get("name:en") or "Local Pharmacy",
+                "name": tags.get("name") or "Local Pharmacy",
                 "lat": p_lat,
                 "lon": p_lng,
-                "distance_km": approx_distance,
-                "phone": tags.get("phone") or tags.get("contact:phone") or "Not available",
+                "distance_km": dist,
+                "phone": tags.get("phone", ""),
                 "is_open_now": _is_open_now(),
                 "opening_hours_display": tags.get("opening_hours") or _default_hours(),
-                "maps_link": f"https://www.openstreetmap.org/directions?engine=osrm_car&route={lat},{lng};{p_lat},{p_lng}",
+                "maps_link": f"https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route={lat},{lng};{p_lat},{p_lng}",
             })
 
         # ---------------------------------------------
-        # STEP 2: SHORTLIST
+        # SORT + LIMIT
         # ---------------------------------------------
 
         pharmacies.sort(key=lambda x: x["distance_km"])
-        pharmacies = pharmacies[:12]
+        pharmacies = pharmacies[:10]
 
         # ---------------------------------------------
-        # STEP 3: ROAD DISTANCE (WITH FALLBACK)
+        # ROAD DISTANCE
         # ---------------------------------------------
-
-        final_list = []
 
         for p in pharmacies:
-            road_distance = _get_road_distance(lat, lng, p["lat"], p["lon"])
+            road = _get_road_distance(lat, lng, p["lat"], p["lon"])
+            if road:
+                p["distance_km"] = road
 
-            if road_distance is not None:
-                p["distance_km"] = road_distance
-
-            final_list.append(p)
-
-        # ---------------------------------------------
-        # STEP 4: SORT FINAL
-        # ---------------------------------------------
-
-        final_list.sort(key=lambda x: x["distance_km"])
-        top5 = final_list[:5]
+        pharmacies.sort(key=lambda x: x["distance_km"])
 
         # ---------------------------------------------
-        # STEP 5: CLEAN ADDRESS
+        # ADDRESS CLEANING
         # ---------------------------------------------
 
-        for p in top5[:3]:
+        for p in pharmacies[:5]:
             p["address"] = _reverse_geocode(p["lat"], p["lon"])
 
-        for p in top5[3:]:
+        for p in pharmacies[5:]:
             p["address"] = "Nearby area"
 
         return {
-            "results": top5,
-            "count": len(top5),
-            "note": "Top 5 pharmacies (clean address view)"
+            "results": pharmacies[:5],
+            "count": len(pharmacies[:5])
         }
 
     except Exception as e:

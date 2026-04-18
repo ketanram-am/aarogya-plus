@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Clock, Leaf, ChevronUp, ChevronDown, Pill } from "lucide-react";
 import { t } from "../translations";
 import { SCHED_LABELS } from "../constants";
+import { SpeakButton } from "./SpeakButton";
 
 export function MedCard({ m, lang = "en" }) {
   const [open, setOpen] = useState(false);
@@ -44,6 +45,7 @@ export function MedCard({ m, lang = "en" }) {
             <div className="purpose-box">
               <div className="purpose-lbl"><Pill size={10} style={{ display: "inline" }} /> {t("purpose", lang)}</div>
               <div className="purpose-text">{m.purpose}</div>
+              <SpeakButton text={`${m.medicine_name}: ${m.purpose}`} lang={lang} />
             </div>
           )}
         </>
