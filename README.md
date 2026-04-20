@@ -1,152 +1,155 @@
 # Aarogya+ 🏥
 
-Smart prescription reader, medicine reminder, and symptom analyser.
+<div align="center">
+  <img src="https://img.shields.io/badge/Status-Active-brightgreen.svg" alt="Status" />
+  <img src="https://img.shields.io/badge/Python-3.10+-blue.svg" alt="Python Version" />
+  <img src="https://img.shields.io/badge/React-18.x-61DAFB.svg?logo=react&logoColor=black" alt="React" />
+  <img src="https://img.shields.io/badge/Flask-API-black.svg?logo=flask" alt="Flask" />
+  <img src="https://img.shields.io/badge/Ollama-Mistral_7B-white.svg" alt="Ollama" />
+  <img src="https://img.shields.io/badge/OpenStreetMap-Integration-7ebd42.svg?logo=openstreetmap" alt="OpenStreetMap" />
+</div>
+
+<br />
+
+**Aarogya+** is an advanced AI-powered web application built specifically to make healthcare interactions stress-free for the elderly and visually impaired. Originally a monolithic project, it has been robustly refactored into a completely open and modular platform.
+
+From scanning messy doctor prescriptions using cutting-edge OCR, to an AI symptom analyzer and a free local pharmacy locator, Aarogya+ is your all-in-one digital health companion.
 
 ---
 
-## Project Structure
+## ✨ Key Features
 
-```
+- 🗣️ **Multilingual & Voice-First** — Interfaces and Text-to-Speech support spanning English, Hindi, Tamil, Telugu, Kannada, Spanish, and French. Includes browser-based speech recognition.
+- 📷 **Smart Prescription Scanner** — Uses Gemini Vision OCR and an FDA-data pipeline to instantly digitize and format handwritten prescriptions.
+- 🩺 **LLM Symptom Analyzer** — Powered locally via Ollama (`mistral:7b`), offering smart triage advice, warnings, and localized translations without risking privacy.
+- ⏰ **Medication Reminders** — Auto-scheduling tools with TTS voice alerts and follow-up / dosage trackers.
+- 📍 **Free Pharmacy Locator** — Replaced costly Google APIs with completely free **OpenStreetMap (Overpass API)** and **OSRM** integration to find open local pharmacies near you.
+- 🏥 **Medical History System** — Built-in SQLite database securely storing past scans, eliminating duplicate reads.
+- 👵 **Accessibility-Centric UI** — Large font sizes, clear contrast ratios, dynamic micro-animations, and easily tappable interfaces tailored for seniors.
+
+---
+
+## 🏗️ Architecture & Project Structure
+
+The project has been aggressively refactored for best practices, splitting monolithic React systems into modular architecture:
+
+```text
 AarogyaPlus/
-├── backend/
-│   ├── main.py          ← Flask API (entry point)
-│   ├── pipeline.py      ← Prescription OCR + medicine extraction
-│   ├── reminder.py      ← Scheduler + TTS reminders
-│   ├── symptom.py       ← LLM symptom analysis
-│   ├── locator.py       ← Pharmacy finder (Google Places / mock)
-│   ├── requirements.txt
-│   └── .env.example     ← Copy to .env and fill in keys
+├── backend/                  # Flask RESTful API Environment
+│   ├── main.py               # Main Flask app & routing
+│   ├── pipeline.py           # OCR & LLM extraction orchestration
+│   ├── reminder.py           # Scheduler & TTS audio generation
+│   ├── symptom.py            # Local Ollama Mistral logic
+│   ├── locator.py            # OpenStreetMap/Overpass locator integration
+│   ├── database.py           # Persistent SQLite operations
+│   ├── requirements.txt      # Python dependencies
+│   └── .env.example          # Environment vars template
 │
-└── frontend/
+└── frontend/                 # Modular React + Vite Frontend
     ├── src/
-    │   ├── main.jsx     ← React entry point
-    │   └── UI.jsx       ← All screens + components
-    ├── index.html
-    ├── package.json
-    └── vite.config.js   ← Dev proxy: /api → localhost:5000
+    │   ├── components/       # Reusable UI parts (Header, Loaders, Buttons)
+    │   ├── pages/            # Full page views (HomeScreen, Locator, etc.)
+    │   ├── services/         # API hooks (Flask integration)
+    │   ├── constants/        # Routes, configs, theme lists
+    │   ├── utils/            # Helper logic
+    │   └── main.jsx          # Vite React injection point
+    ├── vite.config.js        # Port 3000 -> 5000 Proxy config
+    └── package.json          # Node dependencies
 ```
 
 ---
 
-## Prerequisites
+## 🚀 Setup & Installation
 
-| Tool      | Version   | Purpose                          |
-|-----------|-----------|----------------------------------|
-| Python    | 3.10+     | Backend                          |
-| Node.js   | 18+       | Frontend build                   |
-| Ollama    | latest    | Local LLM (Mistral 7B)           |
-| ffmpeg    | any       | Whisper audio processing         |
+### Prerequisites
 
-### Pull the Ollama model
+| Tech       | Version   | Requirement |
+| ---------- | --------- | ----------- |
+| Python     | 3.10+     | Flask App   |
+| Node.js    | 18+       | Vite/React  |
+| Ollama     | latest    | Local LLM   |
 
+**1. Pull the Local Machine Learning Model**
+This is vital for the intelligent symptom analyzer locally.
 ```bash
 ollama pull mistral:7b
 ```
 
----
-
-## Backend Setup
+### Backend (Flask Setup)
 
 ```bash
 cd backend
 
-# 1. Create virtual environment
+# Initialize Virtual Environment
 python -m venv venv
-source venv/bin/activate       # Windows: venv\Scripts\activate
+source venv/bin/activate       # On Windows use: venv\Scripts\activate
 
-# 2. Install dependencies
+# Install Core Dependencies
 pip install -r requirements.txt
 
-# 3. Set up environment variables
+# Environment Config
 cp .env.example .env
-# Edit .env and add your GEMINI_API_KEY (required for OCR)
+# Open .env and insert your GEMINI_API_KEY from Google AI Studio. 
+# NOTE: The pharmacy locator uses OpenStreetMap and does NOT require billing!
 
-# 4. Run the server
+# Launch Backend Server
 python main.py
-# → http://localhost:5000
 ```
+*API running on `http://localhost:5000`*
 
-### Required API keys
-
-| Key                    | Where to get                                      | Required?        |
-|------------------------|---------------------------------------------------|------------------|
-| `GEMINI_API_KEY`       | https://aistudio.google.com/app/apikey            | ✅ Yes (for OCR) |
-| `GOOGLE_PLACES_API_KEY`| https://console.cloud.google.com/                 | ❌ No (mock used) |
-
----
-
-## Frontend Setup
+### Frontend (React + Vite Setup)
 
 ```bash
 cd frontend
 
-# 1. Install dependencies
+# Install Node modules
 npm install
 
-# 2. Run dev server (proxies /api to Flask on port 5000)
+# Start Development Server
 npm run dev
-# → http://localhost:3000
 ```
+*Frontend running on `http://localhost:3000` (API calls automatically proxy to `5000`)*
 
 ---
 
-## Production Build (serve frontend from Flask)
+## 🚢 Production Deployment
+
+To package the front-end directly into Flask's static assets for production:
 
 ```bash
 cd frontend
-npm run build          # outputs to frontend/dist/
+npm run build:backend   # Custom script builds Vite and copies directly to /backend/static/
 
-# Copy build to Flask static folder
-cp -r dist/* ../backend/static/
-
-# Now Flask serves everything on port 5000
 cd ../backend
 python main.py
 ```
+Vist `http://localhost:5000` and the Flask server will intelligently serve the React build while handling REST API routes.
 
 ---
 
-## API Reference
+## 📡 Core API Reference
 
-| Method | Endpoint                | Description                      |
-|--------|-------------------------|----------------------------------|
-| POST   | `/api/analyze`          | Symptom text analysis            |
-| POST   | `/api/audio`            | Voice symptom analysis (Whisper) |
-| POST   | `/api/scan`             | Prescription image → medicines   |
-| GET    | `/api/reminders`        | Today's dose schedule            |
-| POST   | `/api/taken`            | Mark a dose as taken             |
-| GET    | `/api/followup`         | Days remaining per medicine      |
-| GET    | `/api/locate-medicine`  | Nearby pharmacies                |
+The backend exposes the following robust API endpoints, all natively supporting the `?lang=` parameter for instant i18n translation:
 
-All endpoints accept an optional `lang` query param / body field (e.g. `lang=hi`) for translations.
-
----
-
-## Features
-
-- 📷 **Prescription Scan** — Gemini Vision OCR → Mistral extraction → FDA enrichment
-- 🩺 **Symptom Analysis** — text or voice → LLM triage with severity indicators
-- ⏰ **Medicine Reminders** — auto-scheduled with TTS voice alerts
-- 📅 **Follow-up Tracker** — days remaining with refill alerts
-- 🏥 **Pharmacy Locator** — Google Places or mock pharmacies
-- ⚕️ **Pharmacist Portal** — printable dispensing report
-- 🌍 **Multi-language** — English, Hindi, Tamil, Telugu, Kannada, Spanish, French
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| **POST** | `/api/analyze` | Generates diagnostic advice from text/audio inputs via Mistral |
+| **POST** | `/api/scan` | Processes uploaded prescription image -> structured JSON |
+| **POST** | `/api/save-prescription` | Permanently stores a scanned RX in the `database.py` history |
+| **GET** | `/api/prescriptions` | Fetches historical patient history |
+| **GET** | `/api/locate-medicine`| Triggers OpenStreetMap to fetch closest pharmacies using lat/lon |
+| **GET** | `/api/reminders` | Fetches the current TTS-enabled daily schedule |
 
 ---
 
-## Troubleshooting
+## 🐞 Troubleshooting
 
-**Ollama not responding**
-```bash
-ollama serve          # Start Ollama server
-ollama list           # Check if mistral:7b is downloaded
-```
+- **Symptom Analyzer timing out/hanging:** Check if Ollama is running. Run `ollama serve` in a background terminal.
+- **Microphone not working:** Browsers require app rendering from `localhost` or via `HTTPS` to grant microphone permission. Wait ~500ms after clicking the Mic icon.
+- **Port Conflicts:** If `localhost:5000` is in use (often by MacOS system services), alter the `PORT` inside the backend `.env` file, and ensure `proxy` in `vite.config.js` is identically updated.
+- **Locator fails:** OpenStreetMap Overpass servers might briefly rate limit. The app runs a fallback algorithm, wait a few minutes and try again.
 
-**Whisper installation issues**
-```bash
-pip install openai-whisper
-# Also requires ffmpeg: https://ffmpeg.org/download.html
-```
+---
 
-**CORS errors in browser**
-Flask-CORS is configured to allow all origins for `/api/*`. If you still see CORS errors, ensure you're using the Vite dev server (port 3000) which proxies to Flask.
+**Made with ❤️ for Health Tech & Open Source.**
+
